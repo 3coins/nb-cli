@@ -3,6 +3,9 @@ use clap::ValueEnum;
 use nbformat::v4::Cell;
 use std::io::{self, Read};
 
+use crate::config::Config;
+use crate::execution::types::ExecutionMode;
+
 #[derive(Clone, ValueEnum)]
 #[value(rename_all = "lowercase")]
 pub enum CellType {
@@ -173,6 +176,38 @@ pub fn cell_to_string(cell: &Cell) -> String {
 /// Convert cell ID to a string
 pub fn cell_id_to_string(cell: &Cell) -> String {
     cell.id().to_string()
+}
+
+/// Resolve execution mode from CLI args and saved config
+/// CLI arguments take priority over saved configuration
+pub fn resolve_execution_mode(
+    server_arg: Option<String>,
+    token_arg: Option<String>,
+) -> Result<ExecutionMode> {
+    // If both server and token are provided, use them directly
+    if let Some(server_url) = &server_arg {
+        let token = token_arg
+            .as_ref()
+            .context("Must specify --token when using --server")?;
+        return Ok(ExecutionMode::Remote {
+            server_url: server_url.clone(),
+            token: token.clone(),
+        });
+    }
+
+    // If only one is provided, that's an error
+    if token_arg.is_some() {
+        bail!("Cannot specify --token without --server");
+    }
+
+    // Try to load from config
+    let config = Config::load().context("Failed to load config")?;
+
+    if let Some((server_url, token)) = config.resolve_connection(server_arg, token_arg)? {
+        Ok(ExecutionMode::Remote { server_url, token })
+    } else {
+        Ok(ExecutionMode::Local)
+    }
 }
 
 #[cfg(test)]

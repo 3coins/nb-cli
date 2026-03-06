@@ -116,14 +116,10 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
     }
 
     // Determine execution mode
-    let mode = if let Some(server_url) = args.server {
-        let token = args
-            .token
-            .context("Must specify --token when using --server")?;
-        ExecutionMode::Remote { server_url, token }
-    } else {
-        ExecutionMode::Local
-    };
+    let mode = crate::commands::common::resolve_execution_mode(
+        args.server.clone(),
+        args.token.clone(),
+    )?;
 
     // Get kernel from notebook metadata if not specified
     let notebook_kernel = notebook

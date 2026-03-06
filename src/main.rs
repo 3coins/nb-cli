@@ -1,5 +1,5 @@
 mod commands;
-mod debug_collab;
+mod config;
 mod execution;
 mod notebook;
 
@@ -31,10 +31,12 @@ enum Commands {
         #[command(subcommand)]
         command: OutputCommands,
     },
-    /// Debug collaboration API connection
-    DebugCollab(commands::debug_collab::DebugCollabArgs),
-    /// Check if notebook has an active session
-    CheckSession(commands::check_session::CheckSessionArgs),
+    /// Connect to a Jupyter server
+    Connect(commands::connect::ConnectArgs),
+    /// Show connection status
+    Status(commands::status::StatusArgs),
+    /// Disconnect from Jupyter server
+    Disconnect(commands::disconnect::DisconnectArgs),
 }
 
 #[derive(Subcommand)]
@@ -86,8 +88,9 @@ fn main() {
         Commands::Output { command } => match command {
             OutputCommands::Clear(args) => commands::clear_outputs::execute(args),
         },
-        Commands::DebugCollab(args) => commands::debug_collab::execute(args),
-        Commands::CheckSession(args) => commands::check_session::execute(args),
+        Commands::Connect(args) => commands::connect::execute(args),
+        Commands::Status(args) => commands::status::execute(args),
+        Commands::Disconnect(args) => commands::disconnect::execute(args),
     };
 
     if let Err(e) = result {

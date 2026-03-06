@@ -1,6 +1,6 @@
 ---
 name: jupyter-cli
-description: Use the custom Rust-based jupyter-cli for working with Jupyter notebooks instead of built-in tools. Provides programmatic access to notebook operations (read, create, edit cells, execute, search) with JSON output for AI agents. Invoke when working with .ipynb files in this project.
+description: Use the custom Rust-based jupyter-cli for working with Jupyter notebooks instead of built-in tools. Provides programmatic access to notebook operations (read, create, edit cells, execute, search) with JSON output for AI agents. Supports both local file-based and remote real-time collaboration modes. Invoke when working with .ipynb files in this project.
 ---
 
 # Working with Jupyter Notebooks using jupyter-cli
@@ -15,45 +15,40 @@ Use the custom `jupyter-cli` tool (Rust-based CLI) for programmatic notebook man
 
 ## Command Structure
 
-The CLI is organized by resource type:
 ```bash
-jupyter-cli notebook <command>  # Notebook-level operations
-jupyter-cli cell <command>      # Cell-level operations
-jupyter-cli output <command>    # Output management
+jupyter-cli notebook <command>  # create, read, execute, search
+jupyter-cli cell <command>      # add, update, delete, execute
+jupyter-cli output <command>    # clear
+jupyter-cli connect/status/disconnect  # Connection management
 ```
-
-Available commands:
-- **notebook**: `create`, `read`, `execute`, `search`
-- **cell**: `add`, `update`, `delete`, `execute`
-- **output**: `clear`
 
 Use `--help` with any command for detailed options.
 
-## Key Concepts
+## Operating Modes
 
-### Cell Referencing
-Two ways to reference cells:
-- **By index** (`--cell N` or `-c N`): 0-based position, supports negative indexing (-1 = last cell)
-- **By ID** (`--cell-id "id"`): Stable identifier that doesn't change when cells move
-
-### Real-Time Collaboration
-Add/update cells support `--server` and `--token` options for real-time sync with open JupyterLab notebooks via Y.js:
+### Local Mode (Default)
+Direct file manipulation:
 ```bash
-jupyter-cli cell add <file> --source "code" --server http://localhost:8888 --token <token>
+jupyter-cli cell add <file> --source "code"
 ```
 
-### Output Format
-- Default: JSON (nbformat-compliant with additional `index` field)
-- Human-readable: Add `--format text` or `-f text`
+### Remote Mode
+Real-time sync with JupyterLab (use after `jupyter-cli connect` or with `--server`/`--token`):
+```bash
+jupyter-cli connect --server http://localhost:8888 --token <token>
+jupyter-cli cell add <file> --source "code"  # Syncs instantly to open notebook
+jupyter-cli status  # Check connection
+jupyter-cli disconnect
+```
 
-## Common Operations
+## Essential Operations
 
 ### Reading
 ```bash
-# Notebook overview (cell count, types, all cell summaries)
+# Overview with all cells
 jupyter-cli notebook read <file>
 
-# Specific cell (by index or ID)
+# Specific cell
 jupyter-cli notebook read <file> --cell 0
 jupyter-cli notebook read <file> --cell-id "my-cell"
 
@@ -67,68 +62,87 @@ jupyter-cli notebook read <file> --only-markdown
 
 ### Creating & Editing
 ```bash
-# Create notebook
-jupyter-cli notebook create <file> [--template basic|markdown] [--kernel python3]
+# Create
+jupyter-cli notebook create <file> [--template basic|markdown]
 
-# Add cell (at end, specific position, or relative to another cell)
-jupyter-cli cell add <file> --source "code" --type code [--insert-at 0|--after "id"|--before "id"]
+# Add cell
+jupyter-cli cell add <file> --source "code" [--type code|markdown]
 
-# Update cell (replace or append)
+# Update cell
 jupyter-cli cell update <file> --cell 0 --source "new content"
 jupyter-cli cell update <file> --cell 0 --append "\nmore code"
 
-# Delete cell
+# Delete
 jupyter-cli cell delete <file> --cell 0
-jupyter-cli cell delete <file> --cell-id "my-cell"
 ```
 
 ### Execution
 ```bash
 # Execute single cell
-jupyter-cli cell execute <file> --cell 0 [--kernel python3] [--timeout 60] [--allow-errors]
+jupyter-cli cell execute <file> --cell 0
 
-# Execute entire notebook
-jupyter-cli notebook execute <file> [--kernel python3] [--timeout 60] [--start 2 --end 5]
+# Execute notebook
+jupyter-cli notebook execute <file> [--start N --end M]
 
-# Remote execution (via Jupyter server)
-jupyter-cli [cell|notebook] execute <file> --server http://localhost:8888 --token <token>
+# With options
+jupyter-cli cell execute <file> -c 0 --timeout 60 --allow-errors
 ```
 
 ### Searching
 ```bash
-# Search in source code
-jupyter-cli notebook search <file> <pattern> [--ignore-case]
+# Search in source
+jupyter-cli notebook search <file> <pattern>
+
+# Find errors
+jupyter-cli notebook search <file> --with-errors
 
 # Search in outputs or all
 jupyter-cli notebook search <file> <pattern> --scope output|all
-
-# Filter by cell type
-jupyter-cli notebook search <file> <pattern> --cell-type code|markdown
-
-# Find cells with errors
-jupyter-cli notebook search <file> --with-errors
 ```
 
 ### Output Management
 ```bash
-# Clear all outputs
-jupyter-cli output clear <file> --all [--keep-execution-count]
+# Clear all
+jupyter-cli output clear <file> --all
 
 # Clear specific cell
 jupyter-cli output clear <file> --cell 0
 ```
 
-## Typical Workflows
+## Cell Referencing
 
-**Analyze**: `notebook read --only-code` → get all code cells for analysis
-**Debug**: `notebook search --with-errors` → find problematic cells → `notebook read -c N --with-outputs` → inspect
-**Fix**: `cell update -c N --source "fixed"` → `cell execute -c N` → verify
-**Build**: `notebook create` → `cell add` (multiple times) → construct notebook programmatically
+- **By index**: `--cell N` (0-based, supports `-1` for last cell)
+- **By ID**: `--cell-id "id"` (stable, doesn't change when cells move)
+
+## Typical Agent Workflows
+
+**Analyze code**:
+```bash
+jupyter-cli notebook read <file> --only-code
+```
+
+**Debug**:
+```bash
+jupyter-cli notebook search <file> --with-errors
+jupyter-cli notebook read <file> -c N --with-outputs
+```
+
+**Fix and verify**:
+```bash
+jupyter-cli cell update <file> -c N --source "fixed"
+jupyter-cli cell execute <file> -c N
+```
+
+**Build notebook**:
+```bash
+jupyter-cli notebook create <file>
+jupyter-cli cell add <file> --source "import pandas"
+jupyter-cli cell add <file> --source "# Title" --type markdown
+```
 
 ## Important Notes
 
 - All commands output JSON following nbformat specification
-- Supports negative indexing for convenience (-1 = last cell)
-- Cell IDs auto-generated if not present
-- Real-time updates via Y.js when using `--server`/`--token` options
-- Escape sequences (`\n`, `\t`) automatically interpreted in `--source` and `--append`
+- Escape sequences (`\n`, `\t`) automatically interpreted in `--source`/`--append`
+- Use `connect` command to save server credentials for repeated operations
+- Real-time sync via Y.js when working with open JupyterLab notebooks

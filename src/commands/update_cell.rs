@@ -87,8 +87,10 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
         bail!("Must specify --cell or --cell-id");
     }
 
-    // Check if we should use real-time Y.js updates
-    let use_realtime = args.server.is_some() && args.token.is_some();
+    // Check if we should use real-time Y.js updates by resolving execution mode
+    use crate::execution::types::ExecutionMode;
+    let mode = common::resolve_execution_mode(args.server.clone(), args.token.clone())?;
+    let use_realtime = matches!(mode, ExecutionMode::Remote { .. });
 
     if use_realtime {
         // Create Tokio runtime for async operations
@@ -96,18 +98,25 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
             .enable_all()
             .build()?;
 
-        return runtime.block_on(execute_with_realtime(args));
+        return runtime.block_on(execute_with_realtime(args, mode));
     }
 
     // Fallback to file-based updates
     execute_file_based(args)
 }
 
-async fn execute_with_realtime(args: UpdateCellArgs) -> Result<()> {
+async fn execute_with_realtime(
+    args: UpdateCellArgs,
+    mode: crate::execution::types::ExecutionMode,
+) -> Result<()> {
     use crate::execution::remote::{session_check, ydoc_notebook_ops};
 
-    let server_url = args.server.as_ref().unwrap();
-    let token = args.token.as_ref().unwrap();
+    let (server_url, token) = match mode {
+        crate::execution::types::ExecutionMode::Remote { server_url, token } => {
+            (server_url, token)
+        }
+        _ => bail!("Expected remote execution mode"),
+    };
 
     // Extract notebook filename for session check
     let notebook_filename = std::path::Path::new(&args.file)
@@ -118,7 +127,7 @@ async fn execute_with_realtime(args: UpdateCellArgs) -> Result<()> {
     eprintln!("Checking if notebook is open in JupyterLab...");
 
     // Check if notebook has an active session
-    let has_session = session_check::has_active_session(server_url, token, notebook_filename)
+    let has_session = session_check::has_active_session(&server_url, &token, notebook_filename)
         .await
         .unwrap_or(false);
 
@@ -165,8 +174,8 @@ async fn execute_with_realtime(args: UpdateCellArgs) -> Result<()> {
 
     // Update via Y.js
     ydoc_notebook_ops::ydoc_update_cell(
-        server_url,
-        token,
+        &server_url,
+        &token,
         notebook_filename,
         index,
         new_source.as_deref(),

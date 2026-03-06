@@ -1,12 +1,13 @@
 pub mod add_cell;
-pub mod check_session;
 pub mod clear_outputs;
 pub mod common;
+pub mod connect;
 pub mod create_notebook;
-pub mod debug_collab;
 pub mod delete_cell;
+pub mod disconnect;
 pub mod execute_cell;
 pub mod execute_notebook;
 pub mod read;
 pub mod search;
+pub mod status;
 pub mod update_cell;
