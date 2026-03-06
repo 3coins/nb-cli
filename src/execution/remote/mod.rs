@@ -1,7 +1,9 @@
 //! Remote execution backend using Jupyter Server API
 
 pub mod client;
+pub mod output_conversion;
 pub mod websocket;
+pub mod ydoc;
 
 use crate::execution::types::{ExecutionConfig, ExecutionError, ExecutionResult};
 use crate::execution::ExecutionBackend;
@@ -20,6 +22,8 @@ pub struct RemoteExecutor {
     client: Option<JupyterClient>,
     session: Option<SessionInfo>,
     ws: Option<KernelWebSocket>,
+    /// Track if we created the session (true) or reused existing (false)
+    created_session: bool,
 }
 
 impl RemoteExecutor {
@@ -31,6 +35,7 @@ impl RemoteExecutor {
             client: None,
             session: None,
             ws: None,
+            created_session: false,
         })
     }
 
@@ -116,11 +121,8 @@ impl RemoteExecutor {
 
         match collect_result {
             Ok(result) => {
-                let (outputs, execution_count, error_info) = result?;
-                if let Some(error) = error_info {
-                    // Return error result but still include outputs
-                    return Ok((outputs, execution_count));
-                }
+                let (outputs, execution_count, _error_info) = result?;
+                // Error info is already included in outputs as Error variant
                 Ok((outputs, execution_count))
             }
             Err(_) => Err(anyhow::anyhow!(
@@ -150,14 +152,52 @@ impl ExecutionBackend for RemoteExecutor {
             .as_deref()
             .unwrap_or("python3");
 
-        // Create a session (this also starts a kernel)
-        let session = client
-            .create_session("notebook", kernel_name)
-            .await
-            .context("Failed to create session")?;
+        // Try to find an existing session first
+        eprintln!("DEBUG: Looking for existing sessions...");
+        let sessions = client.list_sessions().await?;
+        eprintln!("DEBUG: Found {} existing session(s)", sessions.len());
 
-        // Connect to kernel via WebSocket
-        let ws_url = client.get_ws_url(&session.kernel.id);
+        for (i, s) in sessions.iter().enumerate() {
+            eprintln!("  Session {}: path={}, kernel_id={}, kernel_name={}",
+                i, s.path, s.kernel.id, s.kernel.name);
+        }
+
+        // Try to find and reuse existing session by notebook path
+        let (session, created) = if let Some(ref notebook_path) = self.config.notebook_path {
+            eprintln!("DEBUG: Looking for session with path: {}", notebook_path);
+            if let Some(existing) = sessions.iter().find(|s| s.path == *notebook_path) {
+                eprintln!("DEBUG: Found existing session - reusing it!");
+                eprintln!("  Session ID: {}", existing.id);
+                eprintln!("  Kernel ID: {}", existing.kernel.id);
+                eprintln!("  Kernel name: {}", existing.kernel.name);
+                // Return the existing session directly - no new session/kernel creation
+                (existing.clone(), false)
+            } else {
+                eprintln!("DEBUG: No matching session found, creating new session with new kernel");
+                let s = client
+                    .create_session(notebook_path, kernel_name)
+                    .await
+                    .context("Failed to create session")?;
+                eprintln!("  Session ID: {}", s.id);
+                eprintln!("  Kernel ID: {}", s.kernel.id);
+                (s, true)
+            }
+        } else {
+            eprintln!("DEBUG: No notebook path provided, creating new session with new kernel");
+            let s = client
+                .create_session("notebook", kernel_name)
+                .await
+                .context("Failed to create session")?;
+            eprintln!("  Session ID: {}", s.id);
+            eprintln!("  Kernel ID: {}", s.kernel.id);
+            (s, true)
+        };
+
+        self.created_session = created;
+
+        // Connect to kernel via WebSocket with session_id
+        let ws_url = client.get_ws_url(&session.kernel.id, Some(&session.id));
+        eprintln!("  WebSocket URL: {}", ws_url);
         let ws = KernelWebSocket::connect(&ws_url)
             .await
             .context("Failed to connect to kernel WebSocket")?;
@@ -169,15 +209,15 @@ impl ExecutionBackend for RemoteExecutor {
         Ok(())
     }
 
-    async fn execute_code(&mut self, code: &str) -> Result<ExecutionResult> {
+    async fn execute_code(&mut self, code: &str, cell_id: Option<&str>) -> Result<ExecutionResult> {
         let ws = self
             .ws
             .as_mut()
             .context("WebSocket not connected")?;
 
-        // Send execute request
+        // Send execute request with cell_id
         let msg_id = ws
-            .send_execute_request(code, !self.config.allow_errors)
+            .send_execute_request(code, !self.config.allow_errors, cell_id)
             .await?;
 
         // Collect outputs
@@ -217,9 +257,14 @@ impl ExecutionBackend for RemoteExecutor {
             let _ = ws.close().await;
         }
 
-        // Delete session
-        if let (Some(client), Some(session)) = (self.client.as_ref(), self.session.as_ref()) {
-            let _ = client.delete_session(&session.id).await;
+        // Only delete session if we created it (not if we reused an existing one)
+        if self.created_session {
+            if let (Some(client), Some(session)) = (self.client.as_ref(), self.session.as_ref()) {
+                eprintln!("DEBUG: Deleting session we created: {}", session.id);
+                let _ = client.delete_session(&session.id).await;
+            }
+        } else {
+            eprintln!("DEBUG: Not deleting session (we reused existing session)");
         }
 
         Ok(())

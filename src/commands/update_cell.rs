@@ -70,6 +70,12 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     }
 
     // Read notebook
+    let original_content = std::fs::read_to_string(&args.file)
+        .context("Failed to read original notebook file")?;
+    println!("=== DEBUG: ORIGINAL FILE CONTENT ===");
+    println!("{}", original_content);
+    println!("=== END ORIGINAL ===\n");
+
     let mut notebook = notebook::read_notebook(&args.file)
         .context("Failed to read notebook")?;
 
@@ -173,6 +179,18 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     notebook::write_notebook_atomic(&args.file, &notebook)
         .context("Failed to write notebook")?;
 
+    // Read back the updated content for debugging
+    let updated_content = std::fs::read_to_string(&args.file)
+        .context("Failed to read updated notebook file")?;
+    println!("=== DEBUG: UPDATED FILE CONTENT ===");
+    println!("{}", updated_content);
+    println!("=== END UPDATED ===\n");
+
+    // Show the diff
+    println!("=== DEBUG: FILE DIFF ===");
+    show_diff(&original_content, &updated_content);
+    println!("=== END DIFF ===\n");
+
     // Output result
     let result = UpdateCellResult {
         file: args.file.clone(),
@@ -198,4 +216,25 @@ fn output_result(result: &UpdateCellResult, format: &OutputFormat) -> Result<()>
         }
     }
     Ok(())
+}
+
+fn show_diff(original: &str, updated: &str) {
+    let original_lines: Vec<&str> = original.lines().collect();
+    let updated_lines: Vec<&str> = updated.lines().collect();
+
+    let max_lines = std::cmp::max(original_lines.len(), updated_lines.len());
+
+    for i in 0..max_lines {
+        let orig_line = original_lines.get(i).unwrap_or(&"");
+        let upd_line = updated_lines.get(i).unwrap_or(&"");
+
+        if orig_line != upd_line {
+            if !orig_line.is_empty() {
+                println!("- [Line {}]: {}", i + 1, orig_line);
+            }
+            if !upd_line.is_empty() {
+                println!("+ [Line {}]: {}", i + 1, upd_line);
+            }
+        }
+    }
 }

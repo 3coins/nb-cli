@@ -1,9 +1,11 @@
+use crate::execution::remote::ydoc::YDocClient;
 use crate::execution::{create_backend, types::ExecutionConfig, types::ExecutionMode};
 use crate::notebook::{read_notebook, write_notebook_atomic};
 use anyhow::{Context, Result};
 use clap::Args;
 use nbformat::v4::Cell;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Args)]
@@ -115,12 +117,19 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     let notebook_kernel = notebook.metadata.kernelspec.as_ref()
         .map(|ks| ks.name.as_str());
 
+    // Extract notebook filename for remote session matching
+    let notebook_filename = std::path::Path::new(&args.file)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(String::from);
+
     // Create execution config
     let config = ExecutionConfig {
-        mode,
+        mode: mode.clone(),
         timeout: Duration::from_secs(args.timeout),
         kernel_name: args.kernel.or_else(|| notebook_kernel.map(String::from)),
         allow_errors: args.allow_errors,
+        notebook_path: notebook_filename.clone(),
     };
 
     // Create and start backend (reuse kernel for all cells)
@@ -128,12 +137,14 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     backend.start().await
         .context("Failed to start execution backend")?;
 
-    // Execute cells in range
+    // Execute cells in range and collect results
     let mut executed_count = 0;
     let mut failed_count = 0;
     let total_cells = notebook.cells.len();
+    let mut execution_results: HashMap<usize, crate::execution::types::ExecutionResult> =
+        HashMap::new();
 
-    for (i, cell) in notebook.cells.iter_mut().enumerate() {
+    for (i, cell) in notebook.cells.iter().enumerate() {
         // Skip cells outside range
         if i < start_idx || i > end_idx {
             continue;
@@ -144,8 +155,9 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
             continue;
         }
 
-        // Get cell source
+        // Get cell source and cell_id
         let source = crate::commands::common::cell_to_string(cell);
+        let cell_id = crate::commands::common::cell_id_to_string(cell);
 
         // Print progress (only in text mode)
         if matches!(args.format, OutputFormat::Text) {
@@ -153,22 +165,21 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
         }
 
         // Execute cell
-        match backend.execute_code(&source).await {
+        match backend.execute_code(&source, Some(&cell_id)).await {
             Ok(result) => {
-                // Update cell with outputs
-                if let Cell::Code { ref mut outputs, ref mut execution_count, .. } = cell {
-                    *outputs = result.outputs.clone();
-                    *execution_count = result.execution_count.map(|c| c as i32);
-                }
+                let success = result.success;
 
+                // Store result for later processing
+                execution_results.insert(i, result);
                 executed_count += 1;
 
-                if !result.success {
+                if !success {
                     failed_count += 1;
 
                     if matches!(args.format, OutputFormat::Text) {
                         eprintln!("  ✗ Cell {} failed", i);
-                        if let Some(error) = &result.error {
+                        if let Some(error) = execution_results.get(&i).and_then(|r| r.error.as_ref())
+                        {
                             eprintln!("    Error: {}: {}", error.ename, error.evalue);
                         }
                     }
@@ -192,9 +203,82 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     // Stop backend
     backend.stop().await?;
 
-    // Write updated notebook
-    write_notebook_atomic(&args.file, &notebook)
-        .context("Failed to write notebook")?;
+    // Update notebook cells with execution results
+    for (i, result) in &execution_results {
+        if let Cell::Code {
+            ref mut outputs,
+            ref mut execution_count,
+            ..
+        } = notebook.cells[*i]
+        {
+            *outputs = result.outputs.clone();
+            *execution_count = result.execution_count.map(|c| c as i32);
+        }
+    }
+
+    // Persist changes based on mode
+    match mode {
+        ExecutionMode::Local => {
+            // Write notebook to file
+            write_notebook_atomic(&args.file, &notebook)
+                .context("Failed to write notebook")?;
+        }
+        ExecutionMode::Remote { server_url: ref server_url, token: ref token } => {
+            // Sync outputs to JupyterLab via Y.js
+            let notebook_path = notebook_filename.context("No notebook filename for Y.js sync")?;
+
+            match YDocClient::connect(server_url.clone(), token.clone(), notebook_path).await {
+                Ok(mut ydoc_client) => {
+                    eprintln!("\nSyncing outputs to JupyterLab via Y.js...");
+
+                    // Update each executed cell's outputs and execution_count
+                    for (i, result) in &execution_results {
+                        // Update outputs
+                        if let Err(e) = ydoc_client.update_cell_outputs(*i, result.outputs.clone())
+                        {
+                            eprintln!(
+                                "  Warning: Failed to update outputs for cell {}: {}",
+                                i, e
+                            );
+                        }
+
+                        // Update execution_count
+                        if let Err(e) =
+                            ydoc_client.update_cell_execution_count(*i, result.execution_count)
+                        {
+                            eprintln!(
+                                "  Warning: Failed to update execution count for cell {}: {}",
+                                i, e
+                            );
+                        }
+                    }
+
+                    // Sync changes to server
+                    match ydoc_client.sync().await {
+                        Ok(_) => {
+                            eprintln!("✓ Outputs synced to JupyterLab in real-time");
+                        }
+                        Err(e) => {
+                            eprintln!("  Warning: Failed to sync Y.js updates: {}", e);
+                        }
+                    }
+
+                    // Close connection
+                    let _ = ydoc_client.close().await;
+                }
+                Err(e) => {
+                    eprintln!(
+                        "\nWarning: Could not connect to Y.js document: {}",
+                        e
+                    );
+                    eprintln!("  Outputs will not appear in JupyterLab UI automatically.");
+                    eprintln!(
+                        "  Make sure jupyter-server-documents is installed: pip install jupyter-server-documents"
+                    );
+                }
+            }
+        }
+    }
 
     // Output result
     let output_result = ExecuteNotebookResult {
@@ -218,7 +302,12 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
             println!("Total cells in range: {}", output_result.total_cells);
             println!("Executed: {}", output_result.executed_cells);
             println!("Failed: {}", output_result.failed_cells);
-            println!("\nNotebook updated: {}", args.file);
+
+            if matches!(mode, ExecutionMode::Local) {
+                println!("\nNotebook updated: {}", args.file);
+            } else {
+                println!("\n(Executed via Jupyter Server)");
+            }
         }
     }
 

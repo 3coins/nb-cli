@@ -25,6 +25,9 @@ pub struct ExecutionConfig {
 
     /// Continue execution even if errors occur
     pub allow_errors: bool,
+
+    /// Notebook path (for remote mode session matching)
+    pub notebook_path: Option<String>,
 }
 
 impl Default for ExecutionConfig {
@@ -34,6 +37,7 @@ impl Default for ExecutionConfig {
             timeout: Duration::from_secs(30),
             kernel_name: None,
             allow_errors: false,
+            notebook_path: None,
         }
     }
 }

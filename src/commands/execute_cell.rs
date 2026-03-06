@@ -1,3 +1,4 @@
+use crate::execution::remote::ydoc::YDocClient;
 use crate::execution::{create_backend, types::ExecutionConfig, types::ExecutionMode};
 use crate::notebook::{read_notebook, write_notebook_atomic};
 use anyhow::{bail, Context, Result};
@@ -127,12 +128,19 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
     let notebook_kernel = notebook.metadata.kernelspec.as_ref()
         .map(|ks| ks.name.as_str());
 
+    // Extract notebook filename for remote session matching
+    let notebook_filename = std::path::Path::new(&args.file)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(String::from);
+
     // Create execution config
     let config = ExecutionConfig {
-        mode,
+        mode: mode.clone(),
         timeout: Duration::from_secs(args.timeout),
         kernel_name: args.kernel.or_else(|| notebook_kernel.map(String::from)),
         allow_errors: args.allow_errors,
+        notebook_path: notebook_filename.clone(),
     };
 
     // Create and start backend
@@ -141,21 +149,79 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
         .context("Failed to start execution backend")?;
 
     // Execute cell
-    let result = backend.execute_code(&cell_source).await
+    let result = backend.execute_code(&cell_source, Some(&cell_id)).await
         .context("Failed to execute cell")?;
 
     // Stop backend
     backend.stop().await?;
 
-    // Update notebook with outputs (unless dry-run)
+    // Update notebook with outputs
     if !args.dry_run {
-        if let Cell::Code { ref mut outputs, ref mut execution_count, .. } = notebook.cells[cell_index] {
+        // Update in-memory notebook
+        if let Cell::Code {
+            ref mut outputs,
+            ref mut execution_count,
+            ..
+        } = notebook.cells[cell_index]
+        {
             *outputs = result.outputs.clone();
             *execution_count = result.execution_count.map(|c| c as i32);
         }
 
-        write_notebook_atomic(&args.file, &notebook)
-            .context("Failed to write notebook")?;
+        // Persist changes based on mode
+        match mode {
+            ExecutionMode::Local => {
+                // Write notebook to file
+                write_notebook_atomic(&args.file, &notebook)
+                    .context("Failed to write notebook")?;
+            }
+            ExecutionMode::Remote { server_url: ref server_url, token: ref token } => {
+                // Sync outputs to JupyterLab via Y.js
+                /*
+                let notebook_path =
+                    notebook_filename.context("No notebook filename for Y.js sync")?;
+
+                match YDocClient::connect(server_url.clone(), token.clone(), notebook_path).await {
+                    Ok(mut ydoc_client) => {
+                        eprintln!("\nSyncing outputs to JupyterLab via Y.js...");
+
+                        // Update cell outputs
+                        if let Err(e) =
+                            ydoc_client.update_cell_outputs(cell_index, result.outputs.clone())
+                        {
+                            eprintln!("  Warning: Failed to update outputs: {}", e);
+                        }
+
+                        // Update execution_count
+                        if let Err(e) = ydoc_client
+                            .update_cell_execution_count(cell_index, result.execution_count)
+                        {
+                            eprintln!("  Warning: Failed to update execution count: {}", e);
+                        }
+
+                        // Sync changes to server
+                        match ydoc_client.sync().await {
+                            Ok(_) => {
+                                eprintln!("✓ Outputs synced to JupyterLab in real-time");
+                            }
+                            Err(e) => {
+                                eprintln!("  Warning: Failed to sync Y.js updates: {}", e);
+                            }
+                        }
+
+                        // Close connection
+                        let _ = ydoc_client.close().await;
+                    }
+                    Err(e) => {
+                        eprintln!("\nWarning: Could not connect to Y.js document: {}", e);
+                        eprintln!("  Outputs will not appear in JupyterLab UI automatically.");
+                        eprintln!(
+                            "  Make sure jupyter-server-documents is installed: pip install jupyter-server-documents"
+                        );
+                    }
+                } */
+            }
+        }
     }
 
     // Output result
@@ -192,8 +258,10 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
 
             if args.dry_run {
                 println!("\n(Dry run - notebook not updated)");
-            } else {
+            } else if matches!(mode, ExecutionMode::Local) {
                 println!("\nNotebook updated: {}", args.file);
+            } else {
+                println!("\n(Executed via Jupyter Server)");
             }
         }
     }

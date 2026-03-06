@@ -22,6 +22,10 @@ dirs = "5.0"
 reqwest = { version = "0.11", features = ["json"] }
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
+url = "2.5"
+
+# Y.js CRDT support for real-time document synchronization
+yrs = "0.21"
 
 # Shared async runtime
 tokio = { version = "1", features = ["full"] }

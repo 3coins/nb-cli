@@ -20,7 +20,11 @@ pub trait ExecutionBackend: Send {
     async fn start(&mut self) -> Result<()>;
 
     /// Execute code and return result with outputs
-    async fn execute_code(&mut self, code: &str) -> Result<ExecutionResult>;
+    ///
+    /// # Arguments
+    /// * `code` - The code to execute
+    /// * `cell_id` - Optional cell ID for remote execution (used by Jupyter Server)
+    async fn execute_code(&mut self, code: &str, cell_id: Option<&str>) -> Result<ExecutionResult>;
 
     /// Stop the backend (cleanup kernel or close session)
     async fn stop(&mut self) -> Result<()>;

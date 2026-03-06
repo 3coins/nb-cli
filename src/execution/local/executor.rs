@@ -198,8 +198,9 @@ impl ExecutionBackend for LocalExecutor {
         Ok(())
     }
 
-    async fn execute_code(&mut self, code: &str) -> Result<ExecutionResult> {
+    async fn execute_code(&mut self, code: &str, _cell_id: Option<&str>) -> Result<ExecutionResult> {
         // Execute in a blocking task since we're using subprocess
+        // Note: cell_id is not used in local execution mode
         let code = code.to_string();
         let kernel_name = self.kernel_name.clone();
         let timeout = self.config.timeout;
@@ -212,6 +213,7 @@ impl ExecutionBackend for LocalExecutor {
                     timeout,
                     kernel_name: Some(kernel_name.clone()),
                     allow_errors,
+                    notebook_path: None,
                 },
                 kernel_name,
             };
