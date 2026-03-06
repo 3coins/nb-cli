@@ -5,11 +5,9 @@ use std::path::Path;
 
 /// Read a Jupyter notebook from a file
 pub fn read_notebook(path: impl AsRef<Path>) -> Result<Notebook> {
-    let content = fs::read_to_string(&path)
-        .context("Failed to read notebook file")?;
+    let content = fs::read_to_string(&path).context("Failed to read notebook file")?;
 
-    let notebook = nbformat::parse_notebook(&content)
-        .context("Failed to parse notebook")?;
+    let notebook = nbformat::parse_notebook(&content).context("Failed to parse notebook")?;
 
     match notebook {
         nbformat::Notebook::V4(nb) => Ok(nb),
@@ -34,18 +32,15 @@ pub fn write_notebook_atomic(path: impl AsRef<Path>, notebook: &Notebook) -> Res
     let temp_path = path.with_extension("ipynb.tmp");
 
     // Write to temporary file first
-    write_notebook(&temp_path, notebook)
-        .context("Failed to write to temporary file")?;
+    write_notebook(&temp_path, notebook).context("Failed to write to temporary file")?;
 
     // Atomically rename temporary file to target file
-    fs::rename(&temp_path, path)
-        .context("Failed to rename temporary file to target")?;
+    fs::rename(&temp_path, path).context("Failed to rename temporary file to target")?;
 
     Ok(())
 }
 
 /// Serialize a notebook to JSON string
 fn serialize_notebook(notebook: &nbformat::Notebook) -> Result<String> {
-    nbformat::serialize_notebook(notebook)
-        .context("Failed to serialize notebook")
+    nbformat::serialize_notebook(notebook).context("Failed to serialize notebook")
 }

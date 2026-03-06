@@ -87,8 +87,7 @@ pub fn execute(args: ExecuteCellArgs) -> Result<()> {
 
 async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
     // Read notebook
-    let mut notebook = read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Find cell by index or ID
     let (cell_index, cell_source) = if let Some(index) = args.cell {
@@ -107,7 +106,10 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
     // Verify it's a code cell and get cell ID
     let (is_code_cell, cell_id) = {
         let cell = &notebook.cells[cell_index];
-        (matches!(cell, Cell::Code { .. }), crate::commands::common::cell_id_to_string(cell))
+        (
+            matches!(cell, Cell::Code { .. }),
+            crate::commands::common::cell_id_to_string(cell),
+        )
     };
 
     if !is_code_cell {
@@ -116,16 +118,19 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
 
     // Determine execution mode
     let mode = if let Some(server_url) = args.server {
-        let token = args.token.context(
-            "Must specify --token when using --server"
-        )?;
+        let token = args
+            .token
+            .context("Must specify --token when using --server")?;
         ExecutionMode::Remote { server_url, token }
     } else {
         ExecutionMode::Local
     };
 
     // Get kernel from notebook metadata if not specified
-    let notebook_kernel = notebook.metadata.kernelspec.as_ref()
+    let notebook_kernel = notebook
+        .metadata
+        .kernelspec
+        .as_ref()
         .map(|ks| ks.name.as_str());
 
     // Extract notebook filename for remote session matching
@@ -145,11 +150,15 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
 
     // Create and start backend
     let mut backend = create_backend(config)?;
-    backend.start().await
+    backend
+        .start()
+        .await
         .context("Failed to start execution backend")?;
 
     // Execute cell
-    let result = backend.execute_code(&cell_source, Some(&cell_id)).await
+    let result = backend
+        .execute_code(&cell_source, Some(&cell_id))
+        .await
         .context("Failed to execute cell")?;
 
     // Stop backend
@@ -172,10 +181,12 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
         match mode {
             ExecutionMode::Local => {
                 // Write notebook to file
-                write_notebook_atomic(&args.file, &notebook)
-                    .context("Failed to write notebook")?;
+                write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
             }
-            ExecutionMode::Remote { server_url: ref server_url, token: ref token } => {
+            ExecutionMode::Remote {
+                server_url: ref server_url,
+                token: ref token,
+            } => {
                 // Sync outputs to JupyterLab via Y.js
                 /*
                 let notebook_path =

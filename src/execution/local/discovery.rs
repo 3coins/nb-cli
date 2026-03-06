@@ -30,10 +30,7 @@ pub fn find_kernel(
             let available_str = if available.is_empty() {
                 "No kernels found.".to_string()
             } else {
-                format!(
-                    "Available kernels:\n  {}",
-                    available.join("\n  ")
-                )
+                format!("Available kernels:\n  {}", available.join("\n  "))
             };
 
             Err(anyhow!(
@@ -94,7 +91,13 @@ fn get_kernel_dirs() -> Vec<PathBuf> {
 
     // Home directory (macOS/Linux)
     if let Some(home_dir) = dirs::home_dir() {
-        dirs.push(home_dir.join(".local").join("share").join("jupyter").join("kernels"));
+        dirs.push(
+            home_dir
+                .join(".local")
+                .join("share")
+                .join("jupyter")
+                .join("kernels"),
+        );
         dirs.push(home_dir.join("Library").join("Jupyter").join("kernels")); // macOS
     }
 

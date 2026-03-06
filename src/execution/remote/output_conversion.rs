@@ -16,8 +16,8 @@ pub fn output_to_map_prelim(output: &Output) -> MapPrelim {
         Output::DisplayData(display) => {
             // Serialize Media to JSON
             let data_json = serde_json::to_value(&display.data).unwrap_or(JsonValue::Null);
-            let metadata_json =
-                serde_json::to_value(&display.metadata).unwrap_or(JsonValue::Object(Default::default()));
+            let metadata_json = serde_json::to_value(&display.metadata)
+                .unwrap_or(JsonValue::Object(Default::default()));
 
             let mut map_entries = vec![("output_type", Any::String("display_data".into()))];
             map_entries.push(("data", json_to_any(&data_json)));
@@ -28,8 +28,8 @@ pub fn output_to_map_prelim(output: &Output) -> MapPrelim {
         Output::ExecuteResult(result) => {
             // Serialize Media to JSON
             let data_json = serde_json::to_value(&result.data).unwrap_or(JsonValue::Null);
-            let metadata_json =
-                serde_json::to_value(&result.metadata).unwrap_or(JsonValue::Object(Default::default()));
+            let metadata_json = serde_json::to_value(&result.metadata)
+                .unwrap_or(JsonValue::Object(Default::default()));
 
             let mut map_entries = vec![
                 ("output_type", Any::String("execute_result".into())),
@@ -97,7 +97,10 @@ pub fn update_cell_outputs(
     cell_index: usize,
     outputs: &[Output],
 ) -> Result<(), anyhow::Error> {
-    eprintln!("      update_cell_outputs: Getting cell at index {}", cell_index);
+    eprintln!(
+        "      update_cell_outputs: Getting cell at index {}",
+        cell_index
+    );
 
     // Get the cell value at the given index
     let cell_value = cells_array
@@ -128,14 +131,20 @@ pub fn update_cell_outputs(
 
     // Clear existing outputs
     let current_len = outputs_array.len(txn);
-    eprintln!("      update_cell_outputs: Clearing {} existing outputs", current_len);
+    eprintln!(
+        "      update_cell_outputs: Clearing {} existing outputs",
+        current_len
+    );
 
     if current_len > 0 {
         outputs_array.remove_range(txn, 0, current_len);
     }
 
     // Add new outputs
-    eprintln!("      update_cell_outputs: Adding {} new outputs", outputs.len());
+    eprintln!(
+        "      update_cell_outputs: Adding {} new outputs",
+        outputs.len()
+    );
 
     for (i, output) in outputs.iter().enumerate() {
         let output_map = output_to_map_prelim(output);

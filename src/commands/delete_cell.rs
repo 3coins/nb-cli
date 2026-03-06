@@ -30,7 +30,12 @@ pub struct DeleteCellArgs {
     pub range: Option<String>,
 
     /// Output format
-    #[arg(short = 'f', long = "format", default_value = "json", value_name = "FORMAT")]
+    #[arg(
+        short = 'f',
+        long = "format",
+        default_value = "json",
+        value_name = "FORMAT"
+    )]
     pub format: OutputFormat,
 }
 
@@ -43,8 +48,7 @@ struct DeleteCellResult {
 
 pub fn execute(args: DeleteCellArgs) -> Result<()> {
     // Read notebook
-    let mut notebook = notebook::read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Collect indices to delete
     let mut indices_to_delete: HashSet<usize> = HashSet::new();
@@ -88,8 +92,7 @@ pub fn execute(args: DeleteCellArgs) -> Result<()> {
     let cells_deleted = sorted_indices.len();
 
     // Write notebook atomically
-    notebook::write_notebook_atomic(&args.file, &notebook)
-        .context("Failed to write notebook")?;
+    notebook::write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
 
     // Output result
     let result = DeleteCellResult {
@@ -116,9 +119,7 @@ fn parse_range(range: &str, max_len: usize) -> Result<(usize, usize)> {
     let start = if start_str.is_empty() {
         0
     } else {
-        let start_i32: i32 = start_str
-            .parse()
-            .context("Invalid start index in range")?;
+        let start_i32: i32 = start_str.parse().context("Invalid start index in range")?;
         common::normalize_index(start_i32, max_len)?
     };
 
@@ -126,19 +127,26 @@ fn parse_range(range: &str, max_len: usize) -> Result<(usize, usize)> {
     let end = if end_str.is_empty() {
         max_len
     } else {
-        let end_i32: i32 = end_str
-            .parse()
-            .context("Invalid end index in range")?;
+        let end_i32: i32 = end_str.parse().context("Invalid end index in range")?;
         if end_i32 < 0 {
             let abs_idx = end_i32.abs() as usize;
             if abs_idx > max_len {
-                bail!("Negative end index {} out of range (notebook has {} cells)", end_i32, max_len);
+                bail!(
+                    "Negative end index {} out of range (notebook has {} cells)",
+                    end_i32,
+                    max_len
+                );
             }
             max_len - abs_idx
         } else {
             let end_usize = end_i32 as usize;
             if end_usize > max_len {
-                bail!("End index {} out of range (notebook has {} cells, max end is {})", end_i32, max_len, max_len);
+                bail!(
+                    "End index {} out of range (notebook has {} cells, max end is {})",
+                    end_i32,
+                    max_len,
+                    max_len
+                );
             }
             end_usize
         }
@@ -146,7 +154,11 @@ fn parse_range(range: &str, max_len: usize) -> Result<(usize, usize)> {
 
     // Validate range
     if start >= end {
-        bail!("Invalid range: start ({}) must be less than end ({})", start, end);
+        bail!(
+            "Invalid range: start ({}) must be less than end ({})",
+            start,
+            end
+        );
     }
 
     Ok((start, end))
@@ -158,7 +170,10 @@ fn output_result(result: &DeleteCellResult, format: &OutputFormat) -> Result<()>
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
         OutputFormat::Text => {
-            println!("Deleted {} cell(s) from: {}", result.cells_deleted, result.file);
+            println!(
+                "Deleted {} cell(s) from: {}",
+                result.cells_deleted, result.file
+            );
             println!("Remaining cells: {}", result.remaining_cells);
         }
     }

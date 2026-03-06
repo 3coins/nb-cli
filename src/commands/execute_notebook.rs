@@ -83,8 +83,7 @@ pub fn execute(args: ExecuteNotebookArgs) -> Result<()> {
 
 async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     // Read notebook
-    let mut notebook = read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Determine cell range
     let start_idx = if let Some(start) = args.start {
@@ -100,21 +99,28 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     };
 
     if start_idx > end_idx {
-        anyhow::bail!("Start index {} is greater than end index {}", start_idx, end_idx);
+        anyhow::bail!(
+            "Start index {} is greater than end index {}",
+            start_idx,
+            end_idx
+        );
     }
 
     // Determine execution mode
     let mode = if let Some(server_url) = args.server {
-        let token = args.token.context(
-            "Must specify --token when using --server"
-        )?;
+        let token = args
+            .token
+            .context("Must specify --token when using --server")?;
         ExecutionMode::Remote { server_url, token }
     } else {
         ExecutionMode::Local
     };
 
     // Get kernel from notebook metadata if not specified
-    let notebook_kernel = notebook.metadata.kernelspec.as_ref()
+    let notebook_kernel = notebook
+        .metadata
+        .kernelspec
+        .as_ref()
         .map(|ks| ks.name.as_str());
 
     // Extract notebook filename for remote session matching
@@ -134,7 +140,9 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
 
     // Create and start backend (reuse kernel for all cells)
     let mut backend = create_backend(config)?;
-    backend.start().await
+    backend
+        .start()
+        .await
         .context("Failed to start execution backend")?;
 
     // Execute cells in range and collect results
@@ -178,7 +186,8 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
 
                     if matches!(args.format, OutputFormat::Text) {
                         eprintln!("  ✗ Cell {} failed", i);
-                        if let Some(error) = execution_results.get(&i).and_then(|r| r.error.as_ref())
+                        if let Some(error) =
+                            execution_results.get(&i).and_then(|r| r.error.as_ref())
                         {
                             eprintln!("    Error: {}: {}", error.ename, error.evalue);
                         }
@@ -220,10 +229,12 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     match mode {
         ExecutionMode::Local => {
             // Write notebook to file
-            write_notebook_atomic(&args.file, &notebook)
-                .context("Failed to write notebook")?;
+            write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
         }
-        ExecutionMode::Remote { server_url: ref server_url, token: ref token } => {
+        ExecutionMode::Remote {
+            server_url: ref server_url,
+            token: ref token,
+        } => {
             // Sync outputs to JupyterLab via Y.js
             let notebook_path = notebook_filename.context("No notebook filename for Y.js sync")?;
 
@@ -236,10 +247,7 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
                         // Update outputs
                         if let Err(e) = ydoc_client.update_cell_outputs(*i, result.outputs.clone())
                         {
-                            eprintln!(
-                                "  Warning: Failed to update outputs for cell {}: {}",
-                                i, e
-                            );
+                            eprintln!("  Warning: Failed to update outputs for cell {}: {}", i, e);
                         }
 
                         // Update execution_count
@@ -267,10 +275,7 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
                     let _ = ydoc_client.close().await;
                 }
                 Err(e) => {
-                    eprintln!(
-                        "\nWarning: Could not connect to Y.js document: {}",
-                        e
-                    );
+                    eprintln!("\nWarning: Could not connect to Y.js document: {}", e);
                     eprintln!("  Outputs will not appear in JupyterLab UI automatically.");
                     eprintln!(
                         "  Make sure jupyter-server-documents is installed: pip install jupyter-server-documents"

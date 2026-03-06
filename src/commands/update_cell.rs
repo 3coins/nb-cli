@@ -26,19 +26,39 @@ pub struct UpdateCellArgs {
     pub file: String,
 
     /// Cell index (supports negative)
-    #[arg(short = 'c', long = "cell", value_name = "INDEX", conflicts_with = "cell_id")]
+    #[arg(
+        short = 'c',
+        long = "cell",
+        value_name = "INDEX",
+        conflicts_with = "cell_id"
+    )]
     pub cell: Option<i32>,
 
     /// Cell ID
-    #[arg(short = 'i', long = "cell-id", value_name = "ID", conflicts_with = "cell")]
+    #[arg(
+        short = 'i',
+        long = "cell-id",
+        value_name = "ID",
+        conflicts_with = "cell"
+    )]
     pub cell_id: Option<String>,
 
     /// New source content (use '-' for stdin)
-    #[arg(short = 's', long = "source", value_name = "TEXT", conflicts_with = "append")]
+    #[arg(
+        short = 's',
+        long = "source",
+        value_name = "TEXT",
+        conflicts_with = "append"
+    )]
     pub source: Option<String>,
 
     /// Append to existing source (conflicts with --source)
-    #[arg(short = 'a', long = "append", value_name = "TEXT", conflicts_with = "source")]
+    #[arg(
+        short = 'a',
+        long = "append",
+        value_name = "TEXT",
+        conflicts_with = "source"
+    )]
     pub append: Option<String>,
 
     /// Change cell type
@@ -46,7 +66,12 @@ pub struct UpdateCellArgs {
     pub cell_type: Option<CellType>,
 
     /// Output format
-    #[arg(short = 'f', long = "format", default_value = "json", value_name = "FORMAT")]
+    #[arg(
+        short = 'f',
+        long = "format",
+        default_value = "json",
+        value_name = "FORMAT"
+    )]
     pub format: OutputFormat,
 }
 
@@ -70,14 +95,13 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     }
 
     // Read notebook
-    let original_content = std::fs::read_to_string(&args.file)
-        .context("Failed to read original notebook file")?;
+    let original_content =
+        std::fs::read_to_string(&args.file).context("Failed to read original notebook file")?;
     println!("=== DEBUG: ORIGINAL FILE CONTENT ===");
     println!("{}", original_content);
     println!("=== END ORIGINAL ===\n");
 
-    let mut notebook = notebook::read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Find the target cell
     let (index, cell_id) = if let Some(cell_index) = args.cell {
@@ -100,7 +124,11 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     if let Some(ref source_text) = args.source {
         let new_source = common::parse_source(source_text)?;
         match cell {
-            Cell::Code { source, execution_count, .. } => {
+            Cell::Code {
+                source,
+                execution_count,
+                ..
+            } => {
                 *source = new_source;
                 *execution_count = None; // Reset execution count when modifying source
                 updates.push("source replaced".to_string());
@@ -120,7 +148,11 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     if let Some(ref append_text) = args.append {
         let append_source = common::parse_source(append_text)?;
         match cell {
-            Cell::Code { source, execution_count, .. } => {
+            Cell::Code {
+                source,
+                execution_count,
+                ..
+            } => {
                 source.extend(append_source);
                 *execution_count = None; // Reset execution count when modifying source
                 updates.push("source appended".to_string());
@@ -140,9 +172,23 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     if let Some(new_type) = args.cell_type {
         let old_cell = notebook.cells.remove(index);
         let (old_id, old_metadata, old_source) = match old_cell {
-            Cell::Code { id, metadata, source, .. } => (id, metadata, source),
-            Cell::Markdown { id, metadata, source, .. } => (id, metadata, source),
-            Cell::Raw { id, metadata, source } => (id, metadata, source),
+            Cell::Code {
+                id,
+                metadata,
+                source,
+                ..
+            } => (id, metadata, source),
+            Cell::Markdown {
+                id,
+                metadata,
+                source,
+                ..
+            } => (id, metadata, source),
+            Cell::Raw {
+                id,
+                metadata,
+                source,
+            } => (id, metadata, source),
         };
 
         let new_cell = match new_type {
@@ -176,12 +222,11 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     }
 
     // Write notebook atomically
-    notebook::write_notebook_atomic(&args.file, &notebook)
-        .context("Failed to write notebook")?;
+    notebook::write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
 
     // Read back the updated content for debugging
-    let updated_content = std::fs::read_to_string(&args.file)
-        .context("Failed to read updated notebook file")?;
+    let updated_content =
+        std::fs::read_to_string(&args.file).context("Failed to read updated notebook file")?;
     println!("=== DEBUG: UPDATED FILE CONTENT ===");
     println!("{}", updated_content);
     println!("=== END UPDATED ===\n");

@@ -34,7 +34,12 @@ pub struct ClearOutputsArgs {
     pub keep_execution_count: bool,
 
     /// Output format
-    #[arg(short = 'f', long = "format", default_value = "json", value_name = "FORMAT")]
+    #[arg(
+        short = 'f',
+        long = "format",
+        default_value = "json",
+        value_name = "FORMAT"
+    )]
     pub format: OutputFormat,
 }
 
@@ -47,8 +52,7 @@ struct ClearOutputsResult {
 
 pub fn execute(args: ClearOutputsArgs) -> Result<()> {
     // Read notebook
-    let mut notebook = notebook::read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     let cells_cleared = if let Some(cell_index) = args.cell {
         // Clear specific cell by index
@@ -73,8 +77,7 @@ pub fn execute(args: ClearOutputsArgs) -> Result<()> {
     };
 
     // Write notebook atomically
-    notebook::write_notebook_atomic(&args.file, &notebook)
-        .context("Failed to write notebook")?;
+    notebook::write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
 
     // Output result
     let result = ClearOutputsResult {
@@ -90,7 +93,11 @@ pub fn execute(args: ClearOutputsArgs) -> Result<()> {
 
 fn clear_cell_output(cell: &mut Cell, keep_execution_count: bool) -> Result<()> {
     match cell {
-        Cell::Code { outputs, execution_count, .. } => {
+        Cell::Code {
+            outputs,
+            execution_count,
+            ..
+        } => {
             outputs.clear();
             if !keep_execution_count {
                 *execution_count = None;
@@ -107,7 +114,10 @@ fn output_result(result: &ClearOutputsResult, format: &OutputFormat) -> Result<(
             println!("{}", serde_json::to_string_pretty(&result)?);
         }
         OutputFormat::Text => {
-            println!("Cleared outputs from {} cell(s) in: {}", result.cells_cleared, result.file);
+            println!(
+                "Cleared outputs from {} cell(s) in: {}",
+                result.cells_cleared, result.file
+            );
             if result.execution_counts_cleared {
                 println!("Execution counts were also cleared");
             } else {

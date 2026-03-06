@@ -37,11 +37,7 @@ pub struct YDocClient {
 
 impl YDocClient {
     /// Connect to Y.js room for the given notebook
-    pub async fn connect(
-        server_url: String,
-        token: String,
-        notebook_path: String,
-    ) -> Result<Self> {
+    pub async fn connect(server_url: String, token: String, notebook_path: String) -> Result<Self> {
         eprintln!("DEBUG: Connecting to Y.js document for: {}", notebook_path);
 
         // Step 1: Get file ID from FileID API
@@ -74,20 +70,16 @@ impl YDocClient {
         };
 
         // Step 4: Perform Y.js sync handshake with timeout
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(3),
-            client.sync_handshake()
-        ).await {
+        match tokio::time::timeout(std::time::Duration::from_secs(3), client.sync_handshake()).await
+        {
             Ok(Ok(_)) => {
                 eprintln!("  ✓ Y.js sync handshake completed");
                 Ok(client)
             }
-            Ok(Err(e)) => {
-                Err(e).context("Failed to perform Y.js sync handshake")
-            }
-            Err(_) => {
-                Err(anyhow::anyhow!("Y.js sync handshake timed out after 3 seconds"))
-            }
+            Ok(Err(e)) => Err(e).context("Failed to perform Y.js sync handshake"),
+            Err(_) => Err(anyhow::anyhow!(
+                "Y.js sync handshake timed out after 3 seconds"
+            )),
         }
     }
 
@@ -168,7 +160,11 @@ impl YDocClient {
         (sv_bytes.len() as u32).write(&mut msg); // Length as varint
         msg.extend_from_slice(&sv_bytes);
 
-        eprintln!("    Sending SyncStep1: {} bytes total (sv: {} bytes)", msg.len(), sv_bytes.len());
+        eprintln!(
+            "    Sending SyncStep1: {} bytes total (sv: {} bytes)",
+            msg.len(),
+            sv_bytes.len()
+        );
         eprintln!("    Message hex: {:02x?}", &msg);
 
         self.ws
@@ -188,7 +184,9 @@ impl YDocClient {
             eprintln!("    Received message result: {:?}", msg_result.is_some());
 
             if msg_result.is_none() {
-                return Err(anyhow::anyhow!("WebSocket closed during handshake - connection terminated by server"));
+                return Err(anyhow::anyhow!(
+                    "WebSocket closed during handshake - connection terminated by server"
+                ));
             }
 
             let msg = msg_result.unwrap();
@@ -212,8 +210,12 @@ impl YDocClient {
                     let sync_msg_type = data[1];
                     let payload_with_length = &data[2..];
 
-                    eprintln!("    Received message: y_type={}, sync_type={}, data_len={}",
-                              y_msg_type, sync_msg_type, payload_with_length.len());
+                    eprintln!(
+                        "    Received message: y_type={}, sync_type={}, data_len={}",
+                        y_msg_type,
+                        sync_msg_type,
+                        payload_with_length.len()
+                    );
 
                     // We only handle SYNC messages (type 0)
                     if y_msg_type != 0 {
@@ -223,13 +225,18 @@ impl YDocClient {
 
                     // Decode the length prefix and get actual payload
                     let mut decoder = yrs::encoding::read::Cursor::new(payload_with_length);
-                    let payload_length = u32::read(&mut decoder)
-                        .context("Failed to read payload length")?;
+                    let payload_length =
+                        u32::read(&mut decoder).context("Failed to read payload length")?;
 
                     let payload_start = decoder.next;
-                    let payload = &payload_with_length[payload_start..payload_start + payload_length as usize];
+                    let payload = &payload_with_length
+                        [payload_start..payload_start + payload_length as usize];
 
-                    eprintln!("    Payload length: {}, actual payload: {} bytes", payload_length, payload.len());
+                    eprintln!(
+                        "    Payload length: {}, actual payload: {} bytes",
+                        payload_length,
+                        payload.len()
+                    );
 
                     match sync_msg_type {
                         0 => {
@@ -310,7 +317,9 @@ impl YDocClient {
                 }
                 Message::Close(frame) => {
                     eprintln!("    Received close frame: {:?}", frame);
-                    return Err(anyhow::anyhow!("Server closed WebSocket connection during handshake"));
+                    return Err(anyhow::anyhow!(
+                        "Server closed WebSocket connection during handshake"
+                    ));
                 }
                 Message::Frame(_) => {
                     eprintln!("    Received raw frame");
@@ -325,7 +334,10 @@ impl YDocClient {
     pub fn update_cell_outputs(&mut self, cell_index: usize, outputs: Vec<Output>) -> Result<()> {
         use yrs::{Array, Map};
 
-        eprintln!("    DEBUG: Starting update_cell_outputs for cell {}", cell_index);
+        eprintln!(
+            "    DEBUG: Starting update_cell_outputs for cell {}",
+            cell_index
+        );
 
         // Get cells array from document (outside transaction)
         let cells_array: ArrayRef = self.doc.get_or_insert_array("cells");
@@ -341,12 +353,18 @@ impl YDocClient {
         // Inspect the cell structure before modifying
         if let Some(cell_val) = cells_array.get(&txn, cell_index as u32) {
             if let Ok(cell_map) = cell_val.cast::<yrs::MapRef>() {
-                eprintln!("    DEBUG: Cell {} keys: {:?}", cell_index,
-                    cell_map.keys(&txn).collect::<Vec<_>>());
+                eprintln!(
+                    "    DEBUG: Cell {} keys: {:?}",
+                    cell_index,
+                    cell_map.keys(&txn).collect::<Vec<_>>()
+                );
 
                 if let Some(outputs_val) = cell_map.get(&txn, "outputs") {
                     if let Ok(outputs_arr) = outputs_val.cast::<yrs::ArrayRef>() {
-                        eprintln!("    DEBUG: Current outputs array length: {}", outputs_arr.len(&txn));
+                        eprintln!(
+                            "    DEBUG: Current outputs array length: {}",
+                            outputs_arr.len(&txn)
+                        );
                     }
                 }
             }
@@ -368,7 +386,10 @@ impl YDocClient {
         cell_index: usize,
         execution_count: Option<i64>,
     ) -> Result<()> {
-        eprintln!("    DEBUG: Starting update_cell_execution_count for cell {}", cell_index);
+        eprintln!(
+            "    DEBUG: Starting update_cell_execution_count for cell {}",
+            cell_index
+        );
 
         // Get cells array from document (outside transaction)
         let cells_array: ArrayRef = self.doc.get_or_insert_array("cells");
@@ -398,7 +419,10 @@ impl YDocClient {
         let update = txn.encode_state_as_update_v1(&self.last_state);
 
         eprintln!("  Encoding update since last state: {} bytes", update.len());
-        eprintln!("  Update hex (first 100 bytes): {:02x?}", &update[..update.len().min(100)]);
+        eprintln!(
+            "  Update hex (first 100 bytes): {:02x?}",
+            &update[..update.len().min(100)]
+        );
 
         // Check if there are actually any changes
         if update.is_empty() || update == vec![0, 0] {
@@ -413,8 +437,15 @@ impl YDocClient {
         (update.len() as u32).write(&mut msg); // Length as varint
         msg.extend_from_slice(&update);
 
-        eprintln!("  Sending Y.js update: {} bytes (update: {} bytes)", msg.len(), update.len());
-        eprintln!("  Full message hex (first 100 bytes): {:02x?}", &msg[..msg.len().min(100)]);
+        eprintln!(
+            "  Sending Y.js update: {} bytes (update: {} bytes)",
+            msg.len(),
+            update.len()
+        );
+        eprintln!(
+            "  Full message hex (first 100 bytes): {:02x?}",
+            &msg[..msg.len().min(100)]
+        );
 
         self.ws
             .send(Message::Binary(msg))
@@ -442,7 +473,10 @@ impl YDocClient {
 
     /// Close the WebSocket connection
     pub async fn close(mut self) -> Result<()> {
-        self.ws.close(None).await.context("Failed to close WebSocket")?;
+        self.ws
+            .close(None)
+            .await
+            .context("Failed to close WebSocket")?;
         Ok(())
     }
 }

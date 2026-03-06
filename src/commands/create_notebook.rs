@@ -31,7 +31,12 @@ pub struct CreateArgs {
     pub file: String,
 
     /// Kernel name
-    #[arg(short = 'k', long = "kernel", default_value = "python3", value_name = "NAME")]
+    #[arg(
+        short = 'k',
+        long = "kernel",
+        default_value = "python3",
+        value_name = "NAME"
+    )]
     pub kernel: String,
 
     /// Kernel language
@@ -39,7 +44,12 @@ pub struct CreateArgs {
     pub language: String,
 
     /// Template type
-    #[arg(short = 't', long = "template", default_value = "empty", value_name = "TYPE")]
+    #[arg(
+        short = 't',
+        long = "template",
+        default_value = "empty",
+        value_name = "TYPE"
+    )]
     pub template: Template,
 
     /// Overwrite if file exists
@@ -47,7 +57,12 @@ pub struct CreateArgs {
     pub force: bool,
 
     /// Output format
-    #[arg(short = 'f', long = "format", default_value = "json", value_name = "FORMAT")]
+    #[arg(
+        short = 'f',
+        long = "format",
+        default_value = "json",
+        value_name = "FORMAT"
+    )]
     pub format: OutputFormat,
 }
 
@@ -71,10 +86,7 @@ pub fn execute(args: CreateArgs) -> Result<()> {
 
     // Check if file exists
     if path_obj.exists() && !args.force {
-        bail!(
-            "File '{}' already exists. Use --force to overwrite.",
-            path
-        );
+        bail!("File '{}' already exists. Use --force to overwrite.", path);
     }
 
     // Create parent directories if they don't exist
@@ -89,8 +101,7 @@ pub fn execute(args: CreateArgs) -> Result<()> {
     let notebook = create_notebook(&args)?;
 
     // Write notebook to file
-    notebook::write_notebook_atomic(&path, &notebook)
-        .context("Failed to write notebook")?;
+    notebook::write_notebook_atomic(&path, &notebook).context("Failed to write notebook")?;
 
     // Output result
     let template_name = match args.template {

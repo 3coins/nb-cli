@@ -7,13 +7,21 @@ pub fn normalize_index(index: i32, len: usize) -> Result<usize> {
     if index < 0 {
         let abs_index = index.abs() as usize;
         if abs_index > len {
-            bail!("Negative index {} out of range (notebook has {} cells)", index, len);
+            bail!(
+                "Negative index {} out of range (notebook has {} cells)",
+                index,
+                len
+            );
         }
         Ok(len - abs_index)
     } else {
         let idx = index as usize;
         if idx >= len {
-            bail!("Cell index {} out of range (notebook has {} cells)", index, len);
+            bail!(
+                "Cell index {} out of range (notebook has {} cells)",
+                index,
+                len
+            );
         }
         Ok(idx)
     }
@@ -30,7 +38,10 @@ pub fn find_cell_by_id<'a>(cells: &'a [Cell], cell_id: &str) -> Result<(usize, &
 }
 
 /// Find a cell by ID, returning its index and a mutable reference
-pub fn find_cell_by_id_mut<'a>(cells: &'a mut [Cell], cell_id: &str) -> Result<(usize, &'a mut Cell)> {
+pub fn find_cell_by_id_mut<'a>(
+    cells: &'a mut [Cell],
+    cell_id: &str,
+) -> Result<(usize, &'a mut Cell)> {
     for (index, cell) in cells.iter_mut().enumerate() {
         if cell.id().as_str() == cell_id {
             return Ok((index, cell));
@@ -45,7 +56,8 @@ pub fn parse_source(input: &str) -> Result<Vec<String>> {
     let text = if input == "-" {
         // Read from stdin
         let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer)
+        io::stdin()
+            .read_to_string(&mut buffer)
             .context("Failed to read from stdin")?;
         buffer
     } else {
@@ -69,7 +81,8 @@ pub fn split_source(text: &str) -> Vec<String> {
         return vec![text.to_string()];
     }
 
-    let mut result: Vec<String> = lines.iter()
+    let mut result: Vec<String> = lines
+        .iter()
         .enumerate()
         .map(|(i, line)| {
             if i < lines.len() - 1 {

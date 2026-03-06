@@ -1,7 +1,5 @@
 use super::discovery::find_kernel;
-use crate::execution::types::{
-    ExecutionConfig, ExecutionError, ExecutionResult,
-};
+use crate::execution::types::{ExecutionConfig, ExecutionError, ExecutionResult};
 use crate::execution::ExecutionBackend;
 use anyhow::{Context, Result};
 use std::process::Command;
@@ -128,11 +126,12 @@ print(json.dumps(result))
 
         // Parse result
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: serde_json::Value = serde_json::from_str(&stdout)
-            .context("Failed to parse Python output")?;
+        let result: serde_json::Value =
+            serde_json::from_str(&stdout).context("Failed to parse Python output")?;
 
         // Convert to ExecutionResult
-        let outputs_json = result["outputs"].as_array()
+        let outputs_json = result["outputs"]
+            .as_array()
             .context("Missing outputs in result")?;
 
         let mut outputs = Vec::new();
@@ -190,15 +189,17 @@ impl ExecutionBackend for LocalExecutor {
             .context("Failed to check for jupyter_client")?;
 
         if !check.status.success() {
-            anyhow::bail!(
-                "jupyter_client not found. Install it with: pip install jupyter_client"
-            );
+            anyhow::bail!("jupyter_client not found. Install it with: pip install jupyter_client");
         }
 
         Ok(())
     }
 
-    async fn execute_code(&mut self, code: &str, _cell_id: Option<&str>) -> Result<ExecutionResult> {
+    async fn execute_code(
+        &mut self,
+        code: &str,
+        _cell_id: Option<&str>,
+    ) -> Result<ExecutionResult> {
         // Execute in a blocking task since we're using subprocess
         // Note: cell_id is not used in local execution mode
         let code = code.to_string();

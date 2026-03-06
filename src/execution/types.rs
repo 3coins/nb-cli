@@ -104,13 +104,24 @@ pub enum MessageOutput {
     Stream { name: String, text: String },
 
     /// Display data (images, HTML, etc.)
-    DisplayData { data: serde_json::Value, metadata: serde_json::Value },
+    DisplayData {
+        data: serde_json::Value,
+        metadata: serde_json::Value,
+    },
 
     /// Execute result (output of cell)
-    ExecuteResult { data: serde_json::Value, metadata: serde_json::Value, execution_count: i64 },
+    ExecuteResult {
+        data: serde_json::Value,
+        metadata: serde_json::Value,
+        execution_count: i64,
+    },
 
     /// Error/exception
-    Error { ename: String, evalue: String, traceback: Vec<String> },
+    Error {
+        ename: String,
+        evalue: String,
+        traceback: Vec<String>,
+    },
 }
 
 impl MessageOutput {
@@ -118,12 +129,10 @@ impl MessageOutput {
     pub fn to_nbformat_output(&self) -> Result<nbformat::v4::Output> {
         // Use serde to convert between the types
         match self {
-            MessageOutput::Stream { name, text } => {
-                Ok(nbformat::v4::Output::Stream {
-                    name: name.clone(),
-                    text: nbformat::v4::MultilineString(text.clone()),
-                })
-            }
+            MessageOutput::Stream { name, text } => Ok(nbformat::v4::Output::Stream {
+                name: name.clone(),
+                text: nbformat::v4::MultilineString(text.clone()),
+            }),
             MessageOutput::DisplayData { data, metadata } => {
                 // Create a temporary JSON object with the right structure
                 let json = serde_json::json!({
@@ -133,7 +142,11 @@ impl MessageOutput {
                 });
                 Ok(serde_json::from_value(json)?)
             }
-            MessageOutput::ExecuteResult { data, metadata, execution_count } => {
+            MessageOutput::ExecuteResult {
+                data,
+                metadata,
+                execution_count,
+            } => {
                 // Create a temporary JSON object with the right structure
                 let json = serde_json::json!({
                     "output_type": "execute_result",
@@ -143,13 +156,15 @@ impl MessageOutput {
                 });
                 Ok(serde_json::from_value(json)?)
             }
-            MessageOutput::Error { ename, evalue, traceback } => {
-                Ok(nbformat::v4::Output::Error(nbformat::v4::ErrorOutput {
-                    ename: ename.clone(),
-                    evalue: evalue.clone(),
-                    traceback: traceback.clone(),
-                }))
-            }
+            MessageOutput::Error {
+                ename,
+                evalue,
+                traceback,
+            } => Ok(nbformat::v4::Output::Error(nbformat::v4::ErrorOutput {
+                ename: ename.clone(),
+                evalue: evalue.clone(),
+                traceback: traceback.clone(),
+            })),
         }
     }
 }

@@ -2,8 +2,8 @@ use crate::commands::common;
 use crate::notebook;
 use anyhow::{bail, Result};
 use clap::{Parser, ValueEnum};
-use nbformat::v4::{Cell, Output};
 use jupyter_protocol::media::Media;
+use nbformat::v4::{Cell, Output};
 use regex::Regex;
 use serde_json::json;
 use std::fs;
@@ -319,12 +319,11 @@ fn extract_media_text(media: &Media) -> String {
 fn extract_string_from_json(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::String(s) => s.clone(),
-        serde_json::Value::Array(arr) => {
-            arr.iter()
-                .filter_map(|v| v.as_str())
-                .collect::<Vec<_>>()
-                .join("")
-        }
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect::<Vec<_>>()
+            .join(""),
         _ => value.to_string(),
     }
 }
@@ -423,16 +422,16 @@ fn print_text(results: &[SearchResult], args: &SearchArgs) -> Result<()> {
         if args.with_errors {
             println!("No cells with errors found");
         } else {
-            println!("No matches found for pattern: {}", args.pattern.as_deref().unwrap_or("(no pattern)"));
+            println!(
+                "No matches found for pattern: {}",
+                args.pattern.as_deref().unwrap_or("(no pattern)")
+            );
         }
         return Ok(());
     }
 
     if args.with_errors && args.pattern.is_none() {
-        println!(
-            "Found {} cell(s) with errors\n",
-            cells_matched
-        );
+        println!("Found {} cell(s) with errors\n", cells_matched);
     } else {
         println!(
             "Found {} match(es) in {} cell(s)\n",

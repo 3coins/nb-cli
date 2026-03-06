@@ -2,8 +2,8 @@ use crate::commands::common;
 use crate::notebook;
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
-use nbformat::v4::{Cell, Output};
 use jupyter_protocol::media::Media;
+use nbformat::v4::{Cell, Output};
 use serde_json::json;
 
 #[derive(Clone, ValueEnum)]
@@ -49,8 +49,11 @@ pub fn execute(args: ReadArgs) -> Result<()> {
     // Handle specific cell by index
     if let Some(cell_index) = args.cell {
         let index = common::normalize_index(cell_index, notebook.cells.len())?;
-        let cell = notebook.cells.get(index)
-            .context(format!("Cell index {} out of range (notebook has {} cells)", index, notebook.cells.len()))?;
+        let cell = notebook.cells.get(index).context(format!(
+            "Cell index {} out of range (notebook has {} cells)",
+            index,
+            notebook.cells.len()
+        ))?;
 
         output_cell_with_optional_output(&cell, index, &args.format, args.with_outputs)?;
         return Ok(());
@@ -80,8 +83,12 @@ pub fn execute(args: ReadArgs) -> Result<()> {
     Ok(())
 }
 
-
-fn output_cell_with_optional_output(cell: &Cell, index: usize, format: &OutputFormat, with_outputs: bool) -> Result<()> {
+fn output_cell_with_optional_output(
+    cell: &Cell,
+    index: usize,
+    format: &OutputFormat,
+    with_outputs: bool,
+) -> Result<()> {
     let source = common::cell_to_string(cell);
     let id = common::cell_id_to_string(cell);
 
@@ -114,7 +121,12 @@ fn output_cell_with_optional_output(cell: &Cell, index: usize, format: &OutputFo
             println!("---");
             println!("{}", source);
 
-            if let Cell::Code { execution_count, outputs, .. } = cell {
+            if let Cell::Code {
+                execution_count,
+                outputs,
+                ..
+            } = cell
+            {
                 if let Some(count) = execution_count {
                     println!("\nExecution count: {}", count);
                 }
@@ -138,7 +150,10 @@ fn output_cell_with_optional_output(cell: &Cell, index: usize, format: &OutputFo
 fn print_output_text(output: &Output) {
     match output {
         Output::ExecuteResult(result) => {
-            println!("Execute Result (execution_count: {:?}):", result.execution_count);
+            println!(
+                "Execute Result (execution_count: {:?}):",
+                result.execution_count
+            );
             print_output_data(&result.data);
         }
         Output::DisplayData(data) => {
@@ -178,7 +193,10 @@ fn print_output_data(data: &Media) {
                         }
                         println!();
                     }
-                    _ => println!("{}", serde_json::to_string_pretty(content).unwrap_or_default()),
+                    _ => println!(
+                        "{}",
+                        serde_json::to_string_pretty(content).unwrap_or_default()
+                    ),
                 }
             }
         }
@@ -216,8 +234,17 @@ fn output_code_cells(cells: &[Cell], format: &OutputFormat, with_outputs: bool) 
         }
         OutputFormat::Text => {
             for (index, cell) in cells.iter().enumerate() {
-                if let Cell::Code { execution_count, outputs, .. } = cell {
-                    println!("=== Cell {} (ID: {}) ===", index, common::cell_id_to_string(cell));
+                if let Cell::Code {
+                    execution_count,
+                    outputs,
+                    ..
+                } = cell
+                {
+                    println!(
+                        "=== Cell {} (ID: {}) ===",
+                        index,
+                        common::cell_id_to_string(cell)
+                    );
                     if let Some(count) = execution_count {
                         println!("Execution count: {}", count);
                     }
@@ -269,7 +296,11 @@ fn output_markdown_cells(cells: &[Cell], format: &OutputFormat) -> Result<()> {
         OutputFormat::Text => {
             for (index, cell) in cells.iter().enumerate() {
                 if let Cell::Markdown { .. } = cell {
-                    println!("=== Cell {} (ID: {}) ===", index, common::cell_id_to_string(cell));
+                    println!(
+                        "=== Cell {} (ID: {}) ===",
+                        index,
+                        common::cell_id_to_string(cell)
+                    );
                     println!("{}", common::cell_to_string(cell));
                     println!();
                 }
@@ -279,21 +310,30 @@ fn output_markdown_cells(cells: &[Cell], format: &OutputFormat) -> Result<()> {
     Ok(())
 }
 
-fn output_notebook_structure(notebook: &nbformat::v4::Notebook, format: &OutputFormat, with_outputs: bool) -> Result<()> {
+fn output_notebook_structure(
+    notebook: &nbformat::v4::Notebook,
+    format: &OutputFormat,
+    with_outputs: bool,
+) -> Result<()> {
     // If with_outputs is true, show full cells with outputs instead of structure
     if with_outputs {
         match format {
             OutputFormat::Json => {
-                let cells: Vec<serde_json::Value> = notebook.cells.iter().enumerate().map(|(index, cell)| {
-                    let mut cell_json = serde_json::to_value(cell).unwrap_or(json!(null));
+                let cells: Vec<serde_json::Value> = notebook
+                    .cells
+                    .iter()
+                    .enumerate()
+                    .map(|(index, cell)| {
+                        let mut cell_json = serde_json::to_value(cell).unwrap_or(json!(null));
 
-                    // Add index as convenience field
-                    if let Some(obj) = cell_json.as_object_mut() {
-                        obj.insert("index".to_string(), json!(index));
-                    }
+                        // Add index as convenience field
+                        if let Some(obj) = cell_json.as_object_mut() {
+                            obj.insert("index".to_string(), json!(index));
+                        }
 
-                    cell_json
-                }).collect();
+                        cell_json
+                    })
+                    .collect();
                 let output = json!({ "cells": cells });
                 println!("{}", serde_json::to_string_pretty(&output)?);
             }
@@ -304,10 +344,20 @@ fn output_notebook_structure(notebook: &nbformat::v4::Notebook, format: &OutputF
                         Cell::Markdown { .. } => "Markdown",
                         Cell::Raw { .. } => "Raw",
                     };
-                    println!("=== Cell {} [{}] (ID: {}) ===", index, cell_type, common::cell_id_to_string(cell));
+                    println!(
+                        "=== Cell {} [{}] (ID: {}) ===",
+                        index,
+                        cell_type,
+                        common::cell_id_to_string(cell)
+                    );
                     println!("{}", common::cell_to_string(cell));
 
-                    if let Cell::Code { execution_count, outputs, .. } = cell {
+                    if let Cell::Code {
+                        execution_count,
+                        outputs,
+                        ..
+                    } = cell
+                    {
                         if let Some(count) = execution_count {
                             println!("\nExecution count: {}", count);
                         }
@@ -332,17 +382,22 @@ fn output_notebook_structure(notebook: &nbformat::v4::Notebook, format: &OutputF
     // Default structure view - serialize cells directly with nbformat
     match format {
         OutputFormat::Json => {
-            let cells: Vec<serde_json::Value> = notebook.cells.iter().enumerate().map(|(index, cell)| {
-                let mut cell_json = serde_json::to_value(cell).unwrap_or(json!(null));
+            let cells: Vec<serde_json::Value> = notebook
+                .cells
+                .iter()
+                .enumerate()
+                .map(|(index, cell)| {
+                    let mut cell_json = serde_json::to_value(cell).unwrap_or(json!(null));
 
-                // Add index as convenience field and remove outputs
-                if let Some(obj) = cell_json.as_object_mut() {
-                    obj.insert("index".to_string(), json!(index));
-                    obj.remove("outputs");
-                }
+                    // Add index as convenience field and remove outputs
+                    if let Some(obj) = cell_json.as_object_mut() {
+                        obj.insert("index".to_string(), json!(index));
+                        obj.remove("outputs");
+                    }
 
-                cell_json
-            }).collect();
+                    cell_json
+                })
+                .collect();
 
             // Count cell types for summary
             let mut code_cells = 0;
@@ -411,10 +466,13 @@ fn output_notebook_structure(notebook: &nbformat::v4::Notebook, format: &OutputF
                     format!("{}...", &source[..77])
                 } else {
                     source
-                }.replace('\n', " ");
+                }
+                .replace('\n', " ");
 
                 let (cell_type, executed) = match cell {
-                    Cell::Code { execution_count, .. } => ("code", Some(execution_count.is_some())),
+                    Cell::Code {
+                        execution_count, ..
+                    } => ("code", Some(execution_count.is_some())),
                     Cell::Markdown { .. } => ("markdown", None),
                     Cell::Raw { .. } => ("raw", None),
                 };
@@ -425,7 +483,8 @@ fn output_notebook_structure(notebook: &nbformat::v4::Notebook, format: &OutputF
                     None => "",
                 };
 
-                println!("  {} [{}]{} (ID: {}): {}",
+                println!(
+                    "  {} [{}]{} (ID: {}): {}",
                     index,
                     cell_type,
                     executed_marker,

@@ -70,10 +70,8 @@ impl LocalKernelManager {
 
         // Create temporary connection file
         let temp_dir = std::env::temp_dir();
-        let connection_file = temp_dir.join(format!(
-            "jupyter_kernel_{}.json",
-            uuid::Uuid::new_v4()
-        ));
+        let connection_file =
+            temp_dir.join(format!("jupyter_kernel_{}.json", uuid::Uuid::new_v4()));
 
         Ok(Self {
             kernel_spec_path,
@@ -92,8 +90,8 @@ impl LocalKernelManager {
 
         // Read kernel spec to get command
         let kernel_json_path = self.kernel_spec_path.join("kernel.json");
-        let kernel_json = fs::read_to_string(&kernel_json_path)
-            .context("Failed to read kernel.json")?;
+        let kernel_json =
+            fs::read_to_string(&kernel_json_path).context("Failed to read kernel.json")?;
         let kernel_spec: serde_json::Value = serde_json::from_str(&kernel_json)?;
 
         let argv = kernel_spec["argv"]
@@ -175,8 +173,7 @@ fn allocate_ports(n: usize) -> Result<Vec<u16>> {
 
     let mut ports = Vec::new();
     for _ in 0..n {
-        let listener = TcpListener::bind("127.0.0.1:0")
-            .context("Failed to allocate port")?;
+        let listener = TcpListener::bind("127.0.0.1:0").context("Failed to allocate port")?;
         let port = listener.local_addr()?.port();
         ports.push(port);
         // Listener is dropped here, freeing the port

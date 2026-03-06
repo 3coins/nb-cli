@@ -182,7 +182,11 @@ impl JupyterClient {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            anyhow::bail!("Failed to create session with existing kernel: HTTP {} - {}", status, text);
+            anyhow::bail!(
+                "Failed to create session with existing kernel: HTTP {} - {}",
+                status,
+                text
+            );
         }
 
         let session = response
@@ -281,11 +285,20 @@ impl JupyterClient {
 
     /// Get the WebSocket URL for a kernel
     pub fn get_ws_url(&self, kernel_id: &str, session_id: Option<&str>) -> String {
-        let ws_base = self.base_url.replace("http://", "ws://").replace("https://", "wss://");
+        let ws_base = self
+            .base_url
+            .replace("http://", "ws://")
+            .replace("https://", "wss://");
         if let Some(sid) = session_id {
-            format!("{}/api/kernels/{}/channels?session_id={}&token={}", ws_base, kernel_id, sid, self.token)
+            format!(
+                "{}/api/kernels/{}/channels?session_id={}&token={}",
+                ws_base, kernel_id, sid, self.token
+            )
         } else {
-            format!("{}/api/kernels/{}/channels?token={}", ws_base, kernel_id, self.token)
+            format!(
+                "{}/api/kernels/{}/channels?token={}",
+                ws_base, kernel_id, self.token
+            )
         }
     }
 }

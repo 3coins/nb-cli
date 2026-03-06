@@ -1,6 +1,6 @@
-mod notebook;
 mod commands;
 mod execution;
+mod notebook;
 
 use clap::{Parser, Subcommand};
 use std::process;

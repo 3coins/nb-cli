@@ -28,7 +28,12 @@ pub struct AddCellArgs {
     pub file: String,
 
     /// Cell type
-    #[arg(short = 't', long = "type", default_value = "code", value_name = "TYPE")]
+    #[arg(
+        short = 't',
+        long = "type",
+        default_value = "code",
+        value_name = "TYPE"
+    )]
     pub cell_type: CellType,
 
     /// Cell source content (use '-' for stdin)
@@ -52,7 +57,12 @@ pub struct AddCellArgs {
     pub id: Option<String>,
 
     /// Output format
-    #[arg(short = 'f', long = "format", default_value = "json", value_name = "FORMAT")]
+    #[arg(
+        short = 'f',
+        long = "format",
+        default_value = "json",
+        value_name = "FORMAT"
+    )]
     pub format: OutputFormat,
 }
 
@@ -67,8 +77,7 @@ struct AddCellResult {
 
 pub fn execute(args: AddCellArgs) -> Result<()> {
     // Read notebook
-    let mut notebook = notebook::read_notebook(&args.file)
-        .context("Failed to read notebook")?;
+    let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Parse source content (may read from stdin)
     let source = common::parse_source(&args.source)?;
@@ -116,14 +125,22 @@ pub fn execute(args: AddCellArgs) -> Result<()> {
             // Negative index: insert from end
             let abs_idx = idx.abs() as usize;
             if abs_idx > notebook.cells.len() {
-                bail!("Negative index {} out of range (notebook has {} cells)", idx, notebook.cells.len());
+                bail!(
+                    "Negative index {} out of range (notebook has {} cells)",
+                    idx,
+                    notebook.cells.len()
+                );
             }
             notebook.cells.len() - abs_idx
         } else {
             // Positive index: can be len() for append
             let pos_idx = idx as usize;
             if pos_idx > notebook.cells.len() {
-                bail!("Index {} out of range (notebook has {} cells)", idx, notebook.cells.len());
+                bail!(
+                    "Index {} out of range (notebook has {} cells)",
+                    idx,
+                    notebook.cells.len()
+                );
             }
             pos_idx
         }
@@ -144,8 +161,7 @@ pub fn execute(args: AddCellArgs) -> Result<()> {
     notebook.cells.insert(insert_index, new_cell);
 
     // Write notebook atomically
-    notebook::write_notebook_atomic(&args.file, &notebook)
-        .context("Failed to write notebook")?;
+    notebook::write_notebook_atomic(&args.file, &notebook).context("Failed to write notebook")?;
 
     // Output result
     let cell_type_str = match args.cell_type {
@@ -191,7 +207,10 @@ fn output_result(result: &AddCellResult, format: &OutputFormat) -> Result<()> {
         OutputFormat::Text => {
             println!("Added {} cell to: {}", result.cell_type, result.file);
             println!("Cell ID: {}", result.cell_id);
-            println!("Position: {} (total: {} cells)", result.index, result.total_cells);
+            println!(
+                "Position: {} (total: {} cells)",
+                result.index, result.total_cells
+            );
         }
     }
     Ok(())

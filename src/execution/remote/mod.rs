@@ -68,7 +68,10 @@ impl RemoteExecutor {
                 // Process message content
                 match msg.content {
                     JupyterMessageContent::Status(status) => {
-                        if matches!(status.execution_state, jupyter_protocol::ExecutionState::Idle) {
+                        if matches!(
+                            status.execution_state,
+                            jupyter_protocol::ExecutionState::Idle
+                        ) {
                             idle_received = true;
                         }
                     }
@@ -146,11 +149,7 @@ impl ExecutionBackend for RemoteExecutor {
             .context("Failed to connect to Jupyter Server")?;
 
         // Determine kernel name
-        let kernel_name = self
-            .config
-            .kernel_name
-            .as_deref()
-            .unwrap_or("python3");
+        let kernel_name = self.config.kernel_name.as_deref().unwrap_or("python3");
 
         // Try to find an existing session first
         eprintln!("DEBUG: Looking for existing sessions...");
@@ -158,8 +157,10 @@ impl ExecutionBackend for RemoteExecutor {
         eprintln!("DEBUG: Found {} existing session(s)", sessions.len());
 
         for (i, s) in sessions.iter().enumerate() {
-            eprintln!("  Session {}: path={}, kernel_id={}, kernel_name={}",
-                i, s.path, s.kernel.id, s.kernel.name);
+            eprintln!(
+                "  Session {}: path={}, kernel_id={}, kernel_name={}",
+                i, s.path, s.kernel.id, s.kernel.name
+            );
         }
 
         // Try to find and reuse existing session by notebook path
@@ -210,10 +211,7 @@ impl ExecutionBackend for RemoteExecutor {
     }
 
     async fn execute_code(&mut self, code: &str, cell_id: Option<&str>) -> Result<ExecutionResult> {
-        let ws = self
-            .ws
-            .as_mut()
-            .context("WebSocket not connected")?;
+        let ws = self.ws.as_mut().context("WebSocket not connected")?;
 
         // Send execute request with cell_id
         let msg_id = ws
@@ -225,7 +223,9 @@ impl ExecutionBackend for RemoteExecutor {
             Self::collect_outputs(ws, &msg_id, self.config.timeout).await?;
 
         // Check if any output is an error
-        let has_error = outputs.iter().any(|o| matches!(o, nbformat::v4::Output::Error(_)));
+        let has_error = outputs
+            .iter()
+            .any(|o| matches!(o, nbformat::v4::Output::Error(_)));
 
         if has_error {
             // Extract error info from error output

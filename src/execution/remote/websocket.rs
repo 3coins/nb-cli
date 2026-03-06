@@ -8,11 +8,15 @@ use tokio_tungstenite::{connect_async, tungstenite::Message};
 /// WebSocket connection to a Jupyter kernel
 pub struct KernelWebSocket {
     write: futures_util::stream::SplitSink<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
         Message,
     >,
     read: futures_util::stream::SplitStream<
-        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        tokio_tungstenite::WebSocketStream<
+            tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+        >,
     >,
 }
 
@@ -47,7 +51,8 @@ impl KernelWebSocket {
         let mut offsets = Vec::new();
         for i in 0..num_buffers {
             let offset_start = 8 + (i * 8);
-            let offset = u64::from_le_bytes(data[offset_start..offset_start + 8].try_into().ok()?) as usize;
+            let offset =
+                u64::from_le_bytes(data[offset_start..offset_start + 8].try_into().ok()?) as usize;
             offsets.push(offset);
         }
 
