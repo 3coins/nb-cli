@@ -98,6 +98,7 @@ impl ExecutionResult {
 }
 
 /// Output from a single execution message
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum MessageOutput {
     /// stdout/stderr stream
@@ -126,6 +127,7 @@ pub enum MessageOutput {
 
 impl MessageOutput {
     /// Convert to nbformat Output
+    #[allow(dead_code)]
     pub fn to_nbformat_output(&self) -> Result<nbformat::v4::Output> {
         // Use serde to convert between the types
         match self {

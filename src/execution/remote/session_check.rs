@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Session {
     id: String,
@@ -11,12 +12,6 @@ struct Session {
     name: String,
     #[serde(rename = "type")]
     session_type: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct SessionsResponse {
-    #[serde(flatten)]
-    sessions: Vec<Session>,
 }
 
 /// Check if a notebook file has an active session

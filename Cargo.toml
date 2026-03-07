@@ -1,9 +1,14 @@
 [package]
 name = "jupyter-cli"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A command-line tool for reading, writing, and executing Jupyter notebooks"
+authors = ["Piyush Jain"]
+license = "BSD-3-Clause"
+repository = "https://github.com/3coins/jupyter-cli"
+homepage = "https://github.com/3coins/jupyter-cli"
+keywords = ["jupyter", "notebooks", "cli", "ai"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 nbformat = "1.2"

@@ -11,7 +11,7 @@ use yrs::encoding::varint::VarInt;
 use yrs::encoding::write::Write;
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
-use yrs::{Array, ArrayRef, Doc, Map, ReadTxn, StateVector, Text, Transact, Update};
+use yrs::{ArrayRef, Doc, ReadTxn, StateVector, Transact, Update};
 
 use super::output_conversion::{update_cell_execution_count, update_cell_outputs};
 
@@ -24,6 +24,7 @@ struct FileIdResponse {
 pub struct YDocClient {
     doc: Doc,
     ws: WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
+    #[allow(dead_code)]
     file_id: String,
     /// Track the document state when we last synced, so we only send changes
     last_state: StateVector,
@@ -354,36 +355,12 @@ impl YDocClient {
 
     /// Try to receive a message from the WebSocket (non-blocking)
     /// Returns None if no message is available immediately
+    #[allow(dead_code)]
     pub async fn try_receive_message(&mut self) -> Option<Message> {
         match tokio::time::timeout(std::time::Duration::from_millis(100), self.ws.next()).await {
             Ok(Some(Ok(msg))) => Some(msg),
             _ => None,
         }
-    }
-
-    /// Make a test change to the document (for debugging)
-    /// Returns a description of what was changed
-    pub fn test_make_change(&mut self) -> String {
-        let cells_array: ArrayRef = self.doc.get_or_insert_array("cells");
-        let mut txn = self.doc.transact_mut();
-
-        if cells_array.len(&txn) > 0 {
-            if let Some(cell_val) = cells_array.get(&txn, 0) {
-                if let Ok(cell_map) = cell_val.cast::<yrs::MapRef>() {
-                    if let Some(source_val) = cell_map.get(&txn, "source") {
-                        if let Ok(source_text) = source_val.cast::<yrs::TextRef>() {
-                            let current_len = source_text.len(&txn);
-                            source_text.insert(&mut txn, current_len, "\n# Test change from debug");
-                            return "Added comment to cell 0 source".to_string();
-                        }
-                    }
-                }
-            }
-        }
-
-        let test_text = self.doc.get_or_insert_text("debug_test");
-        test_text.insert(&mut txn, 0, "test value");
-        "Created debug_test text".to_string()
     }
 
     /// Close the WebSocket connection

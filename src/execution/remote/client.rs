@@ -79,6 +79,7 @@ impl JupyterClient {
     }
 
     /// List all running kernels
+    #[allow(dead_code)]
     pub async fn list_kernels(&self) -> Result<Vec<KernelInfo>> {
         let url = format!("{}/api/kernels", self.base_url);
         let response = self
@@ -102,6 +103,7 @@ impl JupyterClient {
     }
 
     /// Start a new kernel
+    #[allow(dead_code)]
     pub async fn start_kernel(&self, kernel_name: &str) -> Result<KernelInfo> {
         let url = format!("{}/api/kernels", self.base_url);
         let payload = serde_json::json!({
@@ -153,6 +155,7 @@ impl JupyterClient {
     }
 
     /// Create a new session with an existing kernel
+    #[allow(dead_code)]
     pub async fn create_session_with_kernel(
         &self,
         notebook_path: &str,
@@ -256,6 +259,7 @@ impl JupyterClient {
     }
 
     /// Save a notebook to the server
+    #[allow(dead_code)]
     pub async fn save_notebook(&self, path: &str, notebook: &nbformat::v4::Notebook) -> Result<()> {
         let url = format!("{}/api/contents/{}", self.base_url, path);
 
