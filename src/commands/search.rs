@@ -469,6 +469,25 @@ fn print_text(results: &[SearchResult], args: &SearchArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nbformat::v4::{CellId, CellMetadata};
+    use std::collections::HashMap;
+    use uuid::Uuid;
+
+    fn create_empty_metadata() -> CellMetadata {
+        CellMetadata {
+            id: None,
+            collapsed: None,
+            scrolled: None,
+            deletable: None,
+            editable: None,
+            format: None,
+            name: None,
+            tags: None,
+            jupyter: None,
+            execution: None,
+            additional: HashMap::new(),
+        }
+    }
 
     #[test]
     fn test_extract_string_from_json() {
@@ -481,7 +500,13 @@ mod tests {
 
     #[test]
     fn test_matches_cell_type() {
-        let code_cell = Cell::new_code_cell(vec![], None);
+        let code_cell = Cell::Code {
+            id: CellId::from(Uuid::new_v4()),
+            metadata: create_empty_metadata(),
+            execution_count: None,
+            source: vec![],
+            outputs: vec![],
+        };
         assert!(matches_cell_type(&code_cell, &CellTypeFilter::All));
         assert!(matches_cell_type(&code_cell, &CellTypeFilter::Code));
         assert!(!matches_cell_type(&code_cell, &CellTypeFilter::Markdown));
@@ -489,7 +514,13 @@ mod tests {
 
     #[test]
     fn test_get_cell_type_name() {
-        let code_cell = Cell::new_code_cell(vec![], None);
+        let code_cell = Cell::Code {
+            id: CellId::from(Uuid::new_v4()),
+            metadata: create_empty_metadata(),
+            execution_count: None,
+            source: vec![],
+            outputs: vec![],
+        };
         assert_eq!(get_cell_type_name(&code_cell), "code");
     }
 }
