@@ -1,0 +1,16 @@
+order_id,customer_name,product,quantity,unit_price,total_amount,order_date,region
+1001,Alice Johnson,Laptop,1,1200.00,1200.00,2026-01-15,North
+1002,Bob Smith,Mouse,2,25.00,50.00,2026-01-16,South
+1003,Carol White,Keyboard,1,75.00,75.00,2026-01-17,East
+1004,David Brown,Monitor,2,350.00,700.00,2026-01-18,West
+1005,Eve Davis,Laptop,1,1200.00,1200.00,2026-01-20,North
+1006,Frank Miller,USB Cable,5,10.00,50.00,2026-01-22,South
+1007,Grace Lee,Webcam,1,120.00,120.00,2026-01-23,East
+1008,Henry Wilson,Headphones,3,80.00,240.00,2026-01-25,West
+1009,Iris Martinez,Mouse,4,25.00,100.00,2026-01-28,North
+1010,Jack Taylor,Keyboard,2,75.00,150.00,2026-02-01,South
+1011,Karen Anderson,Monitor,1,350.00,350.00,2026-02-03,East
+1012,Leo Thomas,Laptop,2,1200.00,2400.00,2026-02-05,West
+1013,Mia Jackson,USB Cable,10,10.00,100.00,2026-02-08,North
+1014,Noah Harris,Webcam,2,120.00,240.00,2026-02-10,South
+1015,Olivia Clark,Headphones,1,80.00,80.00,2026-02-12,East
