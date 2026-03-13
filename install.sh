@@ -63,7 +63,7 @@ mkdir -p "$INSTALL_DIR"
 
 # Download the binary
 echo "⬇️  Downloading from $URL..."
-if ! curl -L "$URL" -o "$INSTALL_DIR/nb" 2>/dev/null; then
+if ! curl -fL "$URL" -o "$INSTALL_DIR/nb" 2>/dev/null; then
     echo "❌ Failed to download. The binary for your platform may not be available yet."
     echo ""
     echo "Available installation methods:"
