@@ -17,17 +17,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Notebook operations
-    Notebook {
-        #[command(subcommand)]
-        command: NotebookCommands,
-    },
-    /// Cell operations
+    /// Create a new notebook file
+    Create(commands::create_notebook::CreateArgs),
+    /// Read and extract notebook content
+    Read(commands::read::ReadArgs),
+    /// Execute cells in a notebook
+    Execute(commands::execute_notebook::ExecuteNotebookArgs),
+    /// Search for text and errors in notebook cells
+    Search(commands::search::SearchArgs),
+    /// Add, update or delete cells
     Cell {
         #[command(subcommand)]
         command: CellCommands,
     },
-    /// Output operations
+    /// Clear outputs
     Output {
         #[command(subcommand)]
         command: OutputCommands,
@@ -41,18 +44,6 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
-enum NotebookCommands {
-    /// Create a new notebook file
-    Create(commands::create_notebook::CreateArgs),
-    /// Read and extract notebook content
-    Read(commands::read::ReadArgs),
-    /// Execute all cells in a notebook
-    Execute(commands::execute_notebook::ExecuteNotebookArgs),
-    /// Search for patterns in notebook cells
-    Search(commands::search::SearchArgs),
-}
-
-#[derive(Subcommand)]
 enum CellCommands {
     /// Add a new cell to a notebook
     Add(commands::add_cell::AddCellArgs),
@@ -60,8 +51,6 @@ enum CellCommands {
     Update(commands::update_cell::UpdateCellArgs),
     /// Delete cells from a notebook
     Delete(commands::delete_cell::DeleteCellArgs),
-    /// Execute a single cell
-    Execute(commands::execute_cell::ExecuteCellArgs),
 }
 
 #[derive(Subcommand)]
@@ -74,17 +63,14 @@ fn main() {
     let cli = Cli::parse();
 
     let result = match cli.command {
-        Commands::Notebook { command } => match command {
-            NotebookCommands::Create(args) => commands::create_notebook::execute(args),
-            NotebookCommands::Read(args) => commands::read::execute(args),
-            NotebookCommands::Execute(args) => commands::execute_notebook::execute(args),
-            NotebookCommands::Search(args) => commands::search::execute(args),
-        },
+        Commands::Create(args) => commands::create_notebook::execute(args),
+        Commands::Read(args) => commands::read::execute(args),
+        Commands::Execute(args) => commands::execute_notebook::execute(args),
+        Commands::Search(args) => commands::search::execute(args),
         Commands::Cell { command } => match command {
             CellCommands::Add(args) => commands::add_cell::execute(args),
             CellCommands::Update(args) => commands::update_cell::execute(args),
             CellCommands::Delete(args) => commands::delete_cell::execute(args),
-            CellCommands::Execute(args) => commands::execute_cell::execute(args),
         },
         Commands::Output { command } => match command {
             OutputCommands::Clear(args) => commands::clear_outputs::execute(args),

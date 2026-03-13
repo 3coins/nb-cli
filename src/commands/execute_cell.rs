@@ -11,13 +11,13 @@ pub struct ExecuteCellArgs {
     /// Path to the notebook file
     pub file: String,
 
-    /// Cell index to execute (supports negative indexing like -1 for last cell)
-    #[arg(short, long, group = "cell_selector", allow_negative_numbers = true)]
-    pub cell: Option<i32>,
+    /// Cell ID to execute (stable identifier)
+    #[arg(short = 'c', long = "cell", group = "cell_selector")]
+    pub cell: Option<String>,
 
-    /// Cell ID to execute
-    #[arg(long, group = "cell_selector")]
-    pub cell_id: Option<String>,
+    /// Cell index to execute (supports negative indexing like -1 for last cell)
+    #[arg(short = 'i', long = "cell-index", group = "cell_selector", allow_negative_numbers = true)]
+    pub cell_index: Option<i32>,
 
     /// Kernel to use (overrides notebook metadata)
     #[arg(short, long)]
@@ -88,18 +88,18 @@ async fn execute_async(args: ExecuteCellArgs) -> Result<()> {
     // Read notebook
     let mut notebook = read_notebook(&args.file).context("Failed to read notebook")?;
 
-    // Find cell by index or ID
-    let (cell_index, cell_source) = if let Some(index) = args.cell {
+    // Find cell by ID or index
+    let (cell_index, cell_source) = if let Some(ref cell_id) = args.cell {
+        let (idx, cell) = crate::commands::common::find_cell_by_id(&notebook.cells, cell_id)?;
+        let source = crate::commands::common::cell_to_string(cell);
+        (idx, source)
+    } else if let Some(index) = args.cell_index {
         let idx = crate::commands::common::normalize_index(index, notebook.cells.len())?;
         let cell = &notebook.cells[idx];
         let source = crate::commands::common::cell_to_string(cell);
         (idx, source)
-    } else if let Some(ref cell_id) = args.cell_id {
-        let (idx, cell) = crate::commands::common::find_cell_by_id(&notebook.cells, cell_id)?;
-        let source = crate::commands::common::cell_to_string(cell);
-        (idx, source)
     } else {
-        bail!("Must specify --cell INDEX or --cell-id ID");
+        bail!("Must specify --cell ID or --cell-index INDEX");
     };
 
     // Verify it's a code cell and get cell ID

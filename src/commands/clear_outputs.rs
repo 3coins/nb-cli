@@ -17,16 +17,16 @@ pub struct ClearOutputsArgs {
     /// Path to notebook file
     pub file: String,
 
-    /// Clear specific cell by index (supports negative indexing)
-    #[arg(short = 'c', long = "cell", value_name = "INDEX", conflicts_with_all = ["cell_id", "all"])]
-    pub cell: Option<i32>,
+    /// Clear specific cell by ID (stable identifier)
+    #[arg(short = 'c', long = "cell", value_name = "ID", conflicts_with_all = ["cell_index", "all"])]
+    pub cell: Option<String>,
 
-    /// Clear specific cell by ID
-    #[arg(short = 'i', long = "cell-id", value_name = "ID", conflicts_with_all = ["cell", "all"])]
-    pub cell_id: Option<String>,
+    /// Clear specific cell by index (supports negative indexing)
+    #[arg(short = 'i', long = "cell-index", value_name = "INDEX", conflicts_with_all = ["cell", "all"])]
+    pub cell_index: Option<i32>,
 
     /// Clear all code cell outputs (default if no options)
-    #[arg(short = 'a', long = "all", conflicts_with_all = ["cell", "cell_id"])]
+    #[arg(short = 'a', long = "all", conflicts_with_all = ["cell", "cell_index"])]
     pub all: bool,
 
     /// Preserve execution_count (default: clear it too)
@@ -54,15 +54,15 @@ pub fn execute(args: ClearOutputsArgs) -> Result<()> {
     // Read notebook
     let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
-    let cells_cleared = if let Some(cell_index) = args.cell {
-        // Clear specific cell by index
-        let index = common::normalize_index(cell_index, notebook.cells.len())?;
-        clear_cell_output(&mut notebook.cells[index], args.keep_execution_count)?;
-        1
-    } else if let Some(ref cell_id) = args.cell_id {
+    let cells_cleared = if let Some(ref cell_id) = args.cell {
         // Clear specific cell by ID
         let (_, cell) = common::find_cell_by_id_mut(&mut notebook.cells, cell_id)?;
         clear_cell_output(cell, args.keep_execution_count)?;
+        1
+    } else if let Some(cell_index) = args.cell_index {
+        // Clear specific cell by index
+        let index = common::normalize_index(cell_index, notebook.cells.len())?;
+        clear_cell_output(&mut notebook.cells[index], args.keep_execution_count)?;
         1
     } else {
         // Clear all code cell outputs (default behavior)

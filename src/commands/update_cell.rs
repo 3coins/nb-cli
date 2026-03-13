@@ -10,23 +10,23 @@ pub struct UpdateCellArgs {
     /// Path to notebook file
     pub file: String,
 
-    /// Cell index (supports negative)
+    /// Cell ID (stable identifier)
     #[arg(
         short = 'c',
         long = "cell",
-        value_name = "INDEX",
-        conflicts_with = "cell_id"
+        value_name = "ID",
+        conflicts_with = "cell_index"
     )]
-    pub cell: Option<i32>,
+    pub cell: Option<String>,
 
-    /// Cell ID
+    /// Cell index (supports negative indexing)
     #[arg(
         short = 'i',
-        long = "cell-id",
-        value_name = "ID",
+        long = "cell-index",
+        value_name = "INDEX",
         conflicts_with = "cell"
     )]
-    pub cell_id: Option<String>,
+    pub cell_index: Option<i32>,
 
     /// New source content (use '-' for stdin)
     #[arg(
@@ -83,8 +83,8 @@ pub fn execute(args: UpdateCellArgs) -> Result<()> {
     }
 
     // Validate that cell selector is specified
-    if args.cell.is_none() && args.cell_id.is_none() {
-        bail!("Must specify --cell or --cell-id");
+    if args.cell.is_none() && args.cell_index.is_none() {
+        bail!("Must specify --cell or --cell-index");
     }
 
     // Check if we should use real-time Y.js updates by resolving execution mode
@@ -140,13 +140,13 @@ async fn execute_with_realtime(
     let notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Find the target cell
-    let (index, cell_id) = if let Some(cell_index) = args.cell {
+    let (index, cell_id) = if let Some(ref id) = args.cell {
+        let (idx, cell) = common::find_cell_by_id(&notebook.cells, id)?;
+        (idx, cell.id().to_string())
+    } else if let Some(cell_index) = args.cell_index {
         let idx = common::normalize_index(cell_index, notebook.cells.len())?;
         let id = notebook.cells[idx].id().to_string();
         (idx, id)
-    } else if let Some(ref id) = args.cell_id {
-        let (idx, cell) = common::find_cell_by_id(&notebook.cells, id)?;
-        (idx, cell.id().to_string())
     } else {
         unreachable!("Already validated cell selector");
     };
@@ -202,13 +202,13 @@ fn execute_file_based(args: UpdateCellArgs) -> Result<()> {
     let mut notebook = notebook::read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Find the target cell
-    let (index, cell_id) = if let Some(cell_index) = args.cell {
+    let (index, cell_id) = if let Some(ref id) = args.cell {
+        let (idx, cell) = common::find_cell_by_id(&notebook.cells, id)?;
+        (idx, cell.id().to_string())
+    } else if let Some(cell_index) = args.cell_index {
         let idx = common::normalize_index(cell_index, notebook.cells.len())?;
         let id = notebook.cells[idx].id().to_string();
         (idx, id)
-    } else if let Some(ref id) = args.cell_id {
-        let (idx, cell) = common::find_cell_by_id(&notebook.cells, id)?;
-        (idx, cell.id().to_string())
     } else {
         unreachable!("Already validated cell selector");
     };

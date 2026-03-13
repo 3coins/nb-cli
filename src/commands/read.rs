@@ -22,32 +22,39 @@ pub struct ReadArgs {
     #[arg(short, long, default_value = "json", value_name = "FORMAT")]
     pub format: OutputFormat,
 
-    /// Get specific cell by index (supports negative indexing like -1)
-    #[arg(short, long, value_name = "INDEX", conflicts_with_all = ["cell_id", "only_code", "only_markdown"])]
-    pub cell: Option<i32>,
+    /// Get specific cell by ID (stable identifier)
+    #[arg(short, long, value_name = "ID", conflicts_with_all = ["cell_index", "only_code", "only_markdown"])]
+    pub cell: Option<String>,
 
-    /// Get specific cell by ID (more stable than index)
-    #[arg(short = 'i', long, value_name = "ID", conflicts_with_all = ["cell", "only_code", "only_markdown"])]
-    pub cell_id: Option<String>,
+    /// Get specific cell by index (supports negative indexing like -1)
+    #[arg(short = 'i', long = "cell-index", value_name = "INDEX", conflicts_with_all = ["cell", "only_code", "only_markdown"])]
+    pub cell_index: Option<i32>,
 
     /// Include cell execution outputs in the display
     #[arg(short = 'o', long = "with-outputs")]
     pub with_outputs: bool,
 
     /// Show only code cells
-    #[arg(long = "only-code", alias = "code", conflicts_with_all = ["cell", "cell_id"])]
+    #[arg(long = "only-code", alias = "code", conflicts_with_all = ["cell", "cell_index"])]
     pub only_code: bool,
 
     /// Show only markdown cells
-    #[arg(long = "only-markdown", alias = "markdown", conflicts_with_all = ["cell", "cell_id"])]
+    #[arg(long = "only-markdown", alias = "markdown", conflicts_with_all = ["cell", "cell_index"])]
     pub only_markdown: bool,
 }
 
 pub fn execute(args: ReadArgs) -> Result<()> {
     let notebook = notebook::read_notebook(&args.file)?;
 
+    // Handle specific cell by ID
+    if let Some(ref cell_id) = args.cell {
+        let (index, cell) = common::find_cell_by_id(&notebook.cells, cell_id)?;
+        output_cell_with_optional_output(cell, index, &args.format, args.with_outputs)?;
+        return Ok(());
+    }
+
     // Handle specific cell by index
-    if let Some(cell_index) = args.cell {
+    if let Some(cell_index) = args.cell_index {
         let index = common::normalize_index(cell_index, notebook.cells.len())?;
         let cell = notebook.cells.get(index).context(format!(
             "Cell index {} out of range (notebook has {} cells)",
@@ -56,13 +63,6 @@ pub fn execute(args: ReadArgs) -> Result<()> {
         ))?;
 
         output_cell_with_optional_output(&cell, index, &args.format, args.with_outputs)?;
-        return Ok(());
-    }
-
-    // Handle specific cell by ID
-    if let Some(ref cell_id) = args.cell_id {
-        let (index, cell) = common::find_cell_by_id(&notebook.cells, cell_id)?;
-        output_cell_with_optional_output(cell, index, &args.format, args.with_outputs)?;
         return Ok(());
     }
 

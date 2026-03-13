@@ -17,16 +17,16 @@ pub struct DeleteCellArgs {
     /// Path to notebook file
     pub file: String,
 
-    /// Cell index(es) to delete (supports negative)
-    #[arg(short = 'c', long = "cell", value_name = "INDEX", conflicts_with_all = ["cell_id", "range"])]
-    pub cell: Vec<i32>,
+    /// Cell ID(s) to delete (stable identifier)
+    #[arg(short = 'c', long = "cell", value_name = "ID", conflicts_with_all = ["cell_index", "range"])]
+    pub cell: Vec<String>,
 
-    /// Cell ID(s) to delete
-    #[arg(short = 'i', long = "cell-id", value_name = "ID", conflicts_with_all = ["cell", "range"])]
-    pub cell_id: Vec<String>,
+    /// Cell index(es) to delete (supports negative indexing)
+    #[arg(short = 'i', long = "cell-index", value_name = "INDEX", conflicts_with_all = ["cell", "range"])]
+    pub cell_index: Vec<i32>,
 
     /// Delete range [start, end) (exclusive end)
-    #[arg(short = 'r', long = "range", value_name = "START:END", conflicts_with_all = ["cell", "cell_id"])]
+    #[arg(short = 'r', long = "range", value_name = "START:END", conflicts_with_all = ["cell", "cell_index"])]
     pub range: Option<String>,
 
     /// Output format
@@ -54,16 +54,16 @@ pub fn execute(args: DeleteCellArgs) -> Result<()> {
     let mut indices_to_delete: HashSet<usize> = HashSet::new();
 
     if !args.cell.is_empty() {
-        // Delete by indices
-        for idx in &args.cell {
-            let normalized = common::normalize_index(*idx, notebook.cells.len())?;
-            indices_to_delete.insert(normalized);
-        }
-    } else if !args.cell_id.is_empty() {
         // Delete by IDs
-        for id in &args.cell_id {
+        for id in &args.cell {
             let (index, _) = common::find_cell_by_id(&notebook.cells, id)?;
             indices_to_delete.insert(index);
+        }
+    } else if !args.cell_index.is_empty() {
+        // Delete by indices
+        for idx in &args.cell_index {
+            let normalized = common::normalize_index(*idx, notebook.cells.len())?;
+            indices_to_delete.insert(normalized);
         }
     } else if let Some(ref range_str) = args.range {
         // Delete by range
@@ -72,7 +72,7 @@ pub fn execute(args: DeleteCellArgs) -> Result<()> {
             indices_to_delete.insert(i);
         }
     } else {
-        bail!("Must specify --cell, --cell-id, or --range");
+        bail!("Must specify --cell, --cell-index, or --range");
     }
 
     // Validate we're not deleting all cells

@@ -25,12 +25,20 @@ pub struct ExecuteNotebookArgs {
     #[arg(long)]
     pub allow_errors: bool,
 
+    /// Execute specific cell by ID (stable identifier)
+    #[arg(short = 'c', long, conflicts_with_all = ["cell_index", "start", "end"])]
+    pub cell: Option<String>,
+
+    /// Execute specific cell by index (supports negative indexing)
+    #[arg(short = 'i', long = "cell-index", allow_negative_numbers = true, conflicts_with_all = ["cell", "start", "end"])]
+    pub cell_index: Option<i32>,
+
     /// Start cell index (inclusive)
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["cell", "cell_index"])]
     pub start: Option<i32>,
 
     /// End cell index (inclusive)
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["cell", "cell_index"])]
     pub end: Option<i32>,
 
     /// Remote server URL (enables remote mode)
@@ -86,16 +94,29 @@ async fn execute_async(args: ExecuteNotebookArgs) -> Result<()> {
     let mut notebook = read_notebook(&args.file).context("Failed to read notebook")?;
 
     // Determine cell range
-    let start_idx = if let Some(start) = args.start {
-        crate::commands::common::normalize_index(start, notebook.cells.len())?
+    let (start_idx, end_idx) = if let Some(ref cell_id) = args.cell {
+        // Execute specific cell by ID
+        let (idx, _) = crate::commands::common::find_cell_by_id(&notebook.cells, cell_id)?;
+        (idx, idx)
+    } else if let Some(cell_index) = args.cell_index {
+        // Execute specific cell by index
+        let idx = crate::commands::common::normalize_index(cell_index, notebook.cells.len())?;
+        (idx, idx)
     } else {
-        0
-    };
+        // Execute range or all cells
+        let start = if let Some(start) = args.start {
+            crate::commands::common::normalize_index(start, notebook.cells.len())?
+        } else {
+            0
+        };
 
-    let end_idx = if let Some(end) = args.end {
-        crate::commands::common::normalize_index(end, notebook.cells.len())?
-    } else {
-        notebook.cells.len().saturating_sub(1)
+        let end = if let Some(end) = args.end {
+            crate::commands::common::normalize_index(end, notebook.cells.len())?
+        } else {
+            notebook.cells.len().saturating_sub(1)
+        };
+
+        (start, end)
     };
 
     if start_idx > end_idx {
