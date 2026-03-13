@@ -48,14 +48,14 @@ The binary will be available at `target/release/nb`.
 
 ```bash
 # Create and build a notebook
-nb notebook create analysis.ipynb
+nb create analysis.ipynb
 nb cell add analysis.ipynb --source "import pandas as pd"
 nb cell add analysis.ipynb --source "# Analysis" --type markdown
-nb notebook read analysis.ipynb
+nb read analysis.ipynb
 
 # Execute and view results
-nb notebook execute analysis.ipynb
-nb notebook read analysis.ipynb --with-outputs
+nb execute analysis.ipynb
+nb read analysis.ipynb --with-outputs
 ```
 
 ## Local Mode
@@ -66,18 +66,19 @@ Local mode lets you create, edit, execute, and query notebooks on disk without a
 
 ```bash
 # Create and edit
-nb notebook create notebook.ipynb
+nb create notebook.ipynb
 nb cell add notebook.ipynb --source "x = 1 + 1"
-nb cell update notebook.ipynb --cell 0 --source "x = 2 + 2"
+nb cell update notebook.ipynb --cell-index 0 --source "x = 2 + 2"
 
 # Read and search
-nb notebook read notebook.ipynb              # View structure
-nb notebook read notebook.ipynb --cell 0     # View specific cell
-nb notebook search notebook.ipynb "import"   # Find patterns
+nb read notebook.ipynb                    # View structure
+nb read notebook.ipynb --cell-index 0     # View specific cell
+nb search notebook.ipynb "import"         # Find patterns
+nb search notebook.ipynb --with-errors    # Find cells with errors
 
 # Execute locally (requires Python dependencies)
-nb cell execute notebook.ipynb --cell 0
-nb notebook execute notebook.ipynb           # Execute all cells
+nb execute notebook.ipynb --cell-index 0  # Execute specific cell
+nb execute notebook.ipynb                 # Execute all cells
 ```
 
 ### Python Dependencies for Local Execution
@@ -108,7 +109,7 @@ When you connect to a Jupyter server, the CLI uses Y.js for conflict-free real-t
 nb connect
 ```
 
-Automatically finds running Jupyter servers using `jupyter server list`, validates them, and connects. If multiple servers are found, you'll get an interactive prompt to choose one.
+Automatically finds running Jupyter servers, validates them, and connects. If multiple servers are found, you'll get an interactive prompt to choose one.
 
 **Manual connection:**
 ```bash
@@ -129,7 +130,7 @@ nb connect
 
 # Future commands use saved connection
 nb cell add notebook.ipynb --source "df.head()"
-nb cell execute notebook.ipynb --cell 0
+nb cell execute notebook.ipynb --cell f9l030
 
 # Check current connection
 nb status
@@ -150,10 +151,10 @@ nb connect
 nb cell add experiment.ipynb --source "df.describe()"
 
 # Update cell in real-time
-nb cell update experiment.ipynb --cell 0 --append "\nprint('done')"
+nb cell update experiment.ipynb --cell-index 0 --append "\nprint('done')"
 
 # Execute via remote kernel
-nb cell execute experiment.ipynb --cell 0
+nb execute experiment.ipynb --cell-index 0
 
 # Disconnect when switching projects
 nb disconnect
@@ -163,14 +164,14 @@ nb disconnect
 
 | Command | Purpose |
 |---------|---------|
-| `nb notebook create <path>` | Create a new notebook |
-| `nb notebook read <path>` | Read notebook structure and cells |
-| `nb notebook execute <path>` | Execute all cells in notebook |
-| `nb notebook search <path> <pattern>` | Search for patterns in notebook |
+| `nb create <path>` | Create a new notebook |
+| `nb read <path>` | Read notebook cells and metadata |
+| `nb execute <path>` | Execute cells in notebook |
+| `nb search <path> <pattern>` | Search text and errors in notebook cells |
 | `nb cell add <path> --source <code>` | Add a new cell |
-| `nb cell update <path> --cell <index>` | Update an existing cell |
-| `nb cell delete <path> --cell <index>` | Delete a cell |
-| `nb cell execute <path> --cell <index>` | Execute a specific cell |
+| `nb cell update <path> --cell-index <index>` | Update an existing cell |
+| `nb cell delete <path> --cell-index <index>` | Delete a cell |
+| `nb execute <path> --cell-index <index>` | Execute a specific cell |
 | `nb output clear <path>` | Clear cell outputs |
 | `nb connect [--server URL --token TOKEN]` | Connect to Jupyter server (auto-detects if no args) |
 | `nb status` | Show current connection status |
@@ -183,8 +184,8 @@ Use `--help` with any command for full details and options.
 ### Cell Referencing
 
 Two ways to reference cells:
-- **Index**: `--cell 0` (position-based, supports negative indexing: `-1` = last cell)
-- **ID**: `--cell-id "my-cell"` (stable, doesn't change when cells move)
+- **Index**: `--cell-index 0` or `-i 0` (position-based, supports negative indexing: `-1` = last cell)
+- **ID**: `--cell "my-cell"` or `-c "my-cell"` (stable, doesn't change when cells move)
 
 ### Output Format
 
@@ -193,7 +194,7 @@ Control output format for better integration with your workflow:
 - **Text** (`-f text`): Human-readable for terminal viewing
 
 ```bash
-nb notebook read notebook.ipynb -f text
+nb read notebook.ipynb -f text
 ```
 
 ### Multi-line Code
@@ -214,45 +215,45 @@ nb cell update notebook.ipynb --cell 0 \
 
 **Build notebook programmatically:**
 ```bash
-nb notebook create analysis.ipynb --template basic
+nb create analysis.ipynb --template basic
 nb cell add analysis.ipynb --source "import pandas as pd"
 nb cell add analysis.ipynb --source "# Analysis" --type markdown
-nb notebook execute analysis.ipynb
+nb execute analysis.ipynb
 ```
 
 **Debug and fix cells:**
 ```bash
 # Find problematic cells
-nb notebook search notebook.ipynb --with-errors
+nb search notebook.ipynb --with-errors
 
 # Inspect specific cell with outputs
-nb notebook read notebook.ipynb --cell 5 --with-outputs
+nb read notebook.ipynb --cell-index 5 --with-outputs
 
 # Fix the cell
-nb cell update notebook.ipynb --cell 5 --source "fixed code"
+nb cell update notebook.ipynb --cell-index 5 --source "fixed code"
 
 # Re-execute
-nb cell execute notebook.ipynb --cell 5
+nb execute notebook.ipynb --cell-index 5
 ```
 
 **Extract specific content:**
 ```bash
-nb notebook read notebook.ipynb --only-code      # All code cells
-nb notebook read notebook.ipynb --only-markdown  # All markdown
-nb notebook read notebook.ipynb --cell -1        # Last cell
+nb read notebook.ipynb --only-code         # All code cells
+nb read notebook.ipynb --only-markdown     # All markdown
+nb read notebook.ipynb --cell-index -1     # Last cell
 ```
 
 **For AI agents:**
 ```bash
 # Analyze all code in a notebook
-nb notebook read notebook.ipynb --only-code
+nb read notebook.ipynb --only-code
 
 # Find cells with errors
-nb notebook search notebook.ipynb --with-errors
+nb search notebook.ipynb --with-errors
 
 # Add analysis cell and execute
 nb cell add experiment.ipynb --source "df.describe()"
-nb cell execute experiment.ipynb --cell -1
+nb execute experiment.ipynb --cell-index -1
 ```
 
 ## Examples
