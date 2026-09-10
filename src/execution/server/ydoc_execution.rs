@@ -22,7 +22,9 @@ async fn fetch_output(
     url_path: &str,
 ) -> Option<nbformat::v4::Output> {
     // Resolve the server-relative output URL (e.g. /api/contents/...) against
-    // the server base, keeping any base_url prefix.
+    // the server base, keeping any base_url prefix. Assumes url_path
+    // components are URL-safe; endpoint_with_path re-encodes them.
+    // jsd's file_id/cell_id/index are URL-safe, so no double-encoding happens today.
     let url = server_url::endpoint_with_path(server_url, &[], url_path).ok()?;
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(3);
     let mut backoff_ms = 100u64; // initial delay before first fetch
